@@ -1,6 +1,6 @@
 use std::io::Result;
 use actix_web::{main, web::{get, Data}, App, HttpServer};
-use routes::{crates::get_crates_list, runner::{get_session_ws, post_new_session, put_session_data}};
+use routes::sessions::{get_session_ws, post_new_session, put_session_data};
 use tokio::sync::broadcast::channel;
 use utils::{database::init_database, structures::state::AppState};
 
@@ -17,7 +17,6 @@ async fn main() -> Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
-            .service(get_crates_list)
             .service(post_new_session)
             .route("/session", get().to(get_session_ws))
             .service(put_session_data)

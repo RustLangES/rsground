@@ -1,16 +1,11 @@
 use std::ops::Add;
 use chrono::Duration;
-use serde_json::from_str;
 use sqlx::types::chrono::Utc;
 use futures_util::StreamExt;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use shiplift::{tty::TtyChunk, ContainerOptions, Docker, ExecContainerOptions, ImageListOptions, PullOptions};
 use sqlx::query;
-use toml::Table;
-
 use crate::db;
-
-use super::structures::crates::CargoToml;
 
 fn generate_hash() -> String {
     let mut rng = thread_rng();
@@ -97,7 +92,7 @@ pub async fn create_docker_session() -> Option<String> {
     Some(hash)
 }
 
-pub async fn get_container_code(hash: String) -> Option<String> {
+pub async fn get_container_file(hash: String, path: impl ToString) -> Option<String> {
     let docker = Docker::new();
 
     let mut exec = docker.containers()
@@ -106,7 +101,7 @@ pub async fn get_container_code(hash: String) -> Option<String> {
             &ExecContainerOptions::builder()
                 .attach_stdout(true)
                 .attach_stderr(true)
-                .cmd(vec!["cat", "/host/src/main.rs"])
+                .cmd(vec!["cat", &path.to_string()])
                 .build()
         );
 
@@ -124,14 +119,18 @@ pub async fn get_container_code(hash: String) -> Option<String> {
     String::from_utf8(output).ok()
 }
 
-pub async fn set_container_code(hash: String, code: String) -> Option<()> {
+pub async fn set_container_file(hash: String, path: impl ToString, contents: String) -> Option<()> {
     let docker = Docker::new();
 
     let mut exec = docker.containers()
         .get(&format!("runner_{hash}"))
         .exec(
             &ExecContainerOptions::builder()
-                .cmd(vec!["bash", "-c", &format!("echo \"{}\" > /host/src/main.rs", code.replace("\"", "\\\""))])
+                .cmd(vec!["bash", "-c", &format!(
+                    "echo \"{}\" > {}",
+                    contents.replace("\"", "\\\""),
+                    path.to_string()
+                )])
                 .attach_stdout(true)
                 .attach_stderr(true)
                 .build()
@@ -145,33 +144,4 @@ pub async fn set_container_code(hash: String, code: String) -> Option<()> {
     };
 
     Some(())
-}
-
-pub async fn read_container_crates(hash: String) -> Option<Vec<String>> {
-    let docker = Docker::new();
-
-    let mut exec = docker.containers()
-        .get(&format!("runner_{hash}"))
-        .exec(
-            &ExecContainerOptions::builder()
-                .cmd(vec!["cat", "/host/Cargo.toml"])
-                .attach_stdout(true)
-                .attach_stderr(true)
-                .build()
-        );
-
-    let mut output = String::new();
-
-    while let Some(chunk) = exec.next().await {
-        match chunk {
-            Ok(TtyChunk::StdOut(bytes)) => {
-                output.push_str(&String::from_utf8_lossy(&bytes))
-            },
-            _ => { return None; }
-        }
-    };
-
-    let cargo_toml: CargoToml = from_str(&output).ok()?;
-
-    todo!()
 }

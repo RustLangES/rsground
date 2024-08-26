@@ -1,11 +1,38 @@
-use actix_web::{post, put, rt::spawn, web::{Data, Json, Payload, Query}, Error, HttpRequest, HttpResponse, Responder};
+use actix_web::{
+    post,
+    put,
+    rt::spawn,
+    web::{
+        Data,
+        Json,
+        Payload,
+        Query
+    },
+    Error,
+    HttpRequest,
+    HttpResponse,
+    Responder
+};
 use actix_ws::{handle, AggregatedMessage};
 use chrono::Utc;
 use futures_util::StreamExt;
 use serde::Deserialize;
 use serde_json::to_string;
 use sqlx::query;
-use crate::{db, utils::{docker::{create_docker_session, get_container_code, set_container_code}, structures::state::{AppState, SessionUpdate}}};
+use crate::{
+    db,
+    utils::{
+        docker::{
+            create_docker_session,
+            get_container_file,
+            set_container_file
+        },
+        structures::{crates::is_toml_allowed, state::{
+            AppState,
+            SessionUpdate
+        }}
+    }
+};
 
 #[post("/session")]
 pub async fn post_new_session() -> impl Responder {
@@ -47,12 +74,16 @@ pub async fn get_session_ws(
         );
 
     if let Some(query) = query {
-        let Some(code) = get_container_code(query.hash).await
+        let Some(code) = get_container_file(query.hash.clone(), "/host/src/main.rs").await
+        else { return Ok(HttpResponse::InternalServerError().into()); };
+
+        let Some(crates) = get_container_file(query.hash, "/host/Cargo.toml").await
         else { return Ok(HttpResponse::InternalServerError().into()); };
 
         let update = to_string(&SessionUpdate {
             name: query.name,
-            code
+            code,
+            crates
         }).unwrap();
 
         session.text(update).await.unwrap();
@@ -101,10 +132,28 @@ pub async fn put_session_data(
         return HttpResponse::BadRequest();
     }
 
-    set_container_code(query.session.clone(), data.code.clone())
+    if !is_toml_allowed(data.crates.clone()) {
+        return HttpResponse::BadRequest();
+    }
+
+    let set_code_is_err = set_container_file(query.session.clone(), "/host/src/main.rs", data.code.clone())
         .await
-        .map_or(
-            HttpResponse::InternalServerError(),
-            |_| HttpResponse::Ok()
-        )
+        .is_none();
+
+    let crates_str = "
+        [package]
+        name=\"runner_project\"
+        version=\"1.0.0\"
+        edition=\"2021\"
+    ".to_string() + &data.crates;
+
+    let set_crates_is_err = set_container_file(query.session.clone(), "/host/Cargo.toml", crates_str)
+        .await
+        .is_none();
+
+    if set_code_is_err || set_crates_is_err {
+        HttpResponse::InternalServerError()
+    } else {
+        HttpResponse::NoContent()
+    }
 }

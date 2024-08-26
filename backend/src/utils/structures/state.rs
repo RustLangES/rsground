@@ -8,5 +8,6 @@ pub struct AppState {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SessionUpdate {
     pub name: String,
-    pub code: String
+    pub code: String,
+    pub crates: String
 }

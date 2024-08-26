@@ -1,25 +1,37 @@
-use std::collections::BTreeMap;
-
-use serde::{Deserialize, Serialize};
-use toml::Value;
+use toml::{map::Map, Value};
 
 
-#[derive(Serialize, Deserialize)]
-pub struct Crate {
-    pub name: String,
-    pub description: String,
-    pub downloads: u32,
-    #[serde(rename(deserialize = "newest_version"))]
-    pub version: String,
-    pub id: String
-}
+pub fn is_toml_allowed(toml_str: impl ToString) -> bool {
+    let Ok(parsed_toml) = toml_str.to_string().parse::<Value>()
+    else { return false; };
 
-#[derive(Deserialize)]
-pub struct CratesResponse {
-    pub crates: Vec<Crate>
-}
+    let allowed = vec![
+        "dependencies",
+        "dev-dependencies",
+        "build-dependencies"
+    ];
 
-#[derive(Debug, Deserialize)]
-pub struct CargoToml {
-    dependencies: Option<BTreeMap<String, Value>>
+    fn check_table(table: &Map<String, Value>, allowed: &Vec<&str>) -> bool {
+        table.keys().all(|key| {
+            if key == "target" {
+                if let Some(sub_table) = table.get(key).and_then(Value::as_table) {
+                    return sub_table.keys().all(move |target_key| {
+                        sub_table.get(target_key)
+                            .and_then(Value::as_table)
+                            .map(move |t| check_table(t, allowed))
+                            .unwrap_or(false)
+                    })
+                } else {
+                    return false;
+                }
+            }
+
+            allowed.contains(&key.as_str())
+        })
+    }
+
+    parsed_toml
+        .as_table()
+        .map(move |t| check_table(t, &allowed))
+        .unwrap_or(false)
 }

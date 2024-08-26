@@ -11,3 +11,9 @@ pub struct SessionUpdate {
     pub code: String,
     pub crates: String
 }
+
+impl SessionUpdate {
+    pub fn current_state() -> Self {
+        
+    }
+}

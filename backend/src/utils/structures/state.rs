@@ -1,19 +1,7 @@
-use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::Sender;
+use super::session::SessionUpdate;
+
 
 pub struct AppState {
     pub session_update_tx: Sender<SessionUpdate>
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct SessionUpdate {
-    pub name: String,
-    pub code: String,
-    pub crates: String
-}
-
-impl SessionUpdate {
-    pub fn current_state() -> Self {
-        
-    }
 }

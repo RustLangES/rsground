@@ -1,11 +1,21 @@
-use std::ops::Add;
+use std::{ops::Add, sync::OnceLock};
+use actix_web::ResponseError;
 use chrono::Duration;
 use sqlx::types::chrono::Utc;
 use futures_util::StreamExt;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
-use shiplift::{tty::TtyChunk, ContainerOptions, Docker, ExecContainerOptions, ImageListOptions, PullOptions};
+use shiplift::{tty::TtyChunk, ContainerOptions, Docker, Error, ExecContainerOptions, ImageListOptions, PullOptions};
 use sqlx::query;
 use crate::db;
+use super::structures::session::SessionRetrievalError;
+
+static DOCKER_CONN: OnceLock<Docker> = OnceLock::new();
+
+macro_rules! get_docker {
+    () => {{
+        DOCKER_CONN.get_or_init(|| Docker::new())
+    }};
+}
 
 fn generate_hash() -> String {
     let mut rng = thread_rng();
@@ -16,8 +26,8 @@ fn generate_hash() -> String {
 }
 
 pub async fn create_docker_session() -> Option<String> {
+    let docker = get_docker!();
     let hash = generate_hash();
-    let docker = Docker::new();
 
     let rust_image_exists = docker.images()
         .list(&ImageListOptions::default())
@@ -92,11 +102,11 @@ pub async fn create_docker_session() -> Option<String> {
     Some(hash)
 }
 
-pub async fn get_container_file(hash: String, path: impl ToString) -> Option<String> {
-    let docker = Docker::new();
-
-    let mut exec = docker.containers()
-        .get(&format!("runner_{hash}"))
+pub async fn get_container_file<T: ToString + ?Sized>
+(hash: &T, path: impl ToString) -> Result<String, SessionRetrievalError> {
+    let mut exec = get_docker!()
+        .containers()
+        .get(&format!("runner_{}", hash.to_string()))
         .exec(
             &ExecContainerOptions::builder()
                 .attach_stdout(true)
@@ -112,36 +122,75 @@ pub async fn get_container_file(hash: String, path: impl ToString) -> Option<Str
             Ok(TtyChunk::StdOut(data)) => {
                 output.extend(data);
             },
-            _ => return None
+            Err(Error::Http(err)) if err.status_code() == 404 => {
+                return Err(SessionRetrievalError::NotFound);
+            },
+            _ => {
+                return Err(SessionRetrievalError::Error);
+            }
         }
     }
 
-    String::from_utf8(output).ok()
+    String::from_utf8(output)
+        .map_err(|_| SessionRetrievalError::Error)
 }
 
-pub async fn set_container_file(hash: String, path: impl ToString, contents: String) -> Option<()> {
-    let docker = Docker::new();
-
-    let mut exec = docker.containers()
-        .get(&format!("runner_{hash}"))
+pub async fn set_container_file<T: ToString + ?Sized>
+(hash: &T, path: impl ToString, contents: &T) -> Result<(), SessionRetrievalError> {
+    let mut exec = get_docker!()
+        .containers()
+        .get(&format!("runner_{}", hash.to_string()))
         .exec(
             &ExecContainerOptions::builder()
                 .cmd(vec!["bash", "-c", &format!(
                     "echo \"{}\" > {}",
-                    contents.replace("\"", "\\\""),
+                    contents.to_string().replace("\"", "\\\""),
                     path.to_string()
                 )])
-                .attach_stdout(true)
-                .attach_stderr(true)
                 .build()
         );
 
     while let Some(chunk) = exec.next().await {
         match chunk {
-            Ok(TtyChunk::StdOut(_)) => {},
-            _ => { return None; }
+            Ok(_) => {},
+            Err(Error::Http(err)) if err.status_code() == 404 => {
+                return Err(SessionRetrievalError::NotFound);
+            },
+            _ => { return Err(SessionRetrievalError::Error); }
         }
     };
 
-    Some(())
+    Ok(())
+}
+
+pub async fn run_container_code<T: ToString + ?Sized>
+(hash: &T) -> Result<String, SessionRetrievalError> {
+    let docker = get_docker!();
+
+    let mut exec = docker.containers()
+        .get(&format!("runner_{}", hash.to_string()))
+        .exec(
+            &ExecContainerOptions::builder()
+                .cmd(vec!["bash", "-c", "cd /host && cargo run"])
+                .attach_stdout(true)
+                .attach_stderr(true)
+                .build()
+        );
+
+    let mut output = Vec::new();
+
+    while let Some(chunk) = exec.next().await {
+        match chunk {
+            Ok(TtyChunk::StdOut(c_out)) | Ok(TtyChunk::StdErr(c_out)) => {
+                output.extend(c_out);
+            },
+            Err(Error::Http(err)) if err.status_code() == 404 => {
+                return Err(SessionRetrievalError::NotFound);
+            }
+            _ => { return Err(SessionRetrievalError::Error); }
+        }
+    }
+
+    String::from_utf8(output)
+        .map_err(|_| SessionRetrievalError::Error)
 }

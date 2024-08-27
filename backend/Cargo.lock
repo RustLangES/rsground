@@ -307,6 +307,7 @@ dependencies = [
  "actix-ws",
  "chrono",
  "futures-util",
+ "lazy_static",
  "rand",
  "reqwest",
  "serde",

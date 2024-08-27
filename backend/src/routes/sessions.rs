@@ -1,38 +1,24 @@
-use actix_web::{
-    post,
-    put,
-    rt::spawn,
-    web::{
-        Data,
-        Json,
-        Payload,
-        Query
-    },
-    Error,
-    HttpRequest,
-    HttpResponse,
-    Responder
-};
+use crate::{db, utils::{docker::{create_docker_session, run_container_code, set_container_file}, structures::{crates::is_toml_allowed, session::{SessionRetrievalError, SessionUpdate}, state::AppState}}};
+use actix_web::{post, put, rt::spawn, web::{Data, Json, Payload, Query}, Error, HttpRequest, HttpResponse, Responder};
 use actix_ws::{handle, AggregatedMessage};
-use chrono::Utc;
 use futures_util::StreamExt;
 use serde::Deserialize;
 use serde_json::to_string;
 use sqlx::query;
-use crate::{
-    db,
-    utils::{
-        docker::{
-            create_docker_session,
-            get_container_file,
-            set_container_file
-        },
-        structures::{crates::is_toml_allowed, state::{
-            AppState,
-            SessionUpdate
-        }}
+
+macro_rules! respond_docker_operation {
+    ($operation:expr, $result:expr) => {
+        match $operation {
+            Ok(res) => $result(res),
+            Err(SessionRetrievalError::Error) => HttpResponse::InternalServerError().finish(),
+            Err(SessionRetrievalError::NotFound) => HttpResponse::NotFound().finish()
+        }
+    };
+
+    ($operation:expr) => {
+        respond_docker_operation!($operation, |_| HttpResponse::Ok().finish())
     }
-};
+}
 
 #[post("/session")]
 pub async fn post_new_session() -> impl Responder {
@@ -64,32 +50,26 @@ pub async fn get_session_ws(
         .aggregate_continuations()
         .max_continuation_size(2_usize.pow(20));
 
-    let query = query!("SELECT * FROM sessions WHERE hash = ?", query.session)
-        .fetch_one(db!())
-        .await
-        .ok()
-        .take_if(|result| result
-            .expires_at
-            .lt(&Utc::now().naive_utc())
-        );
+    match SessionUpdate::current_state(&query.session).await {
+        Ok(current) => {
+            session.text(
+                to_string(&current)
+                    .unwrap()
+            )
+                .await
+                .unwrap();
+        },
 
-    if let Some(query) = query {
-        let Some(code) = get_container_file(query.hash.clone(), "/host/src/main.rs").await
-        else { return Ok(HttpResponse::InternalServerError().into()); };
+        Err(SessionRetrievalError::NotFound) => {
+            return Ok(HttpResponse::BadRequest()
+                .finish());
+        },
 
-        let Some(crates) = get_container_file(query.hash, "/host/Cargo.toml").await
-        else { return Ok(HttpResponse::InternalServerError().into()); };
-
-        let update = to_string(&SessionUpdate {
-            name: query.name,
-            code,
-            crates
-        }).unwrap();
-
-        session.text(update).await.unwrap();
-    } else {
-        return Ok(HttpResponse::BadRequest().into());
-    }
+        Err(SessionRetrievalError::Error) => {
+            return Ok(HttpResponse::InternalServerError()
+                .finish());
+        }
+    };
 
     let mut handler_session = session
         .clone();
@@ -113,32 +93,35 @@ pub async fn get_session_ws(
     Ok(res)
 }
 
-#[put("/session")]
-pub async fn put_session_data(
-    query: Query<SessionQuery>,
-    data: Json<SessionUpdate>
-) -> impl Responder {
-    let updated = query!(
+#[put("/session/name")]
+pub async fn put_session_name(query: Query<SessionQuery>, name: String) -> impl Responder {
+    query!(
         "UPDATE sessions SET name = ? WHERE hash = ?",
-        data.name,
+        name,
         query.session
     )
         .execute(db!())
         .await
-        .map(|result| result.rows_affected())
-        .unwrap_or(0);
+        .map_or(
+            HttpResponse::InternalServerError(),
+            |result| match result.rows_affected() {
+                0 => HttpResponse::NotFound(),
+                _ => HttpResponse::NoContent()
+            }
+        )
+}
 
-    if updated == 0 {
-        return HttpResponse::BadRequest();
-    }
+#[put("/session/code")]
+pub async fn put_session_code(query: Query<SessionQuery>, code: String) -> impl Responder {
+    respond_docker_operation!{ set_container_file(&query.session, "/host/src/main.rs", &code).await }
+}
 
+#[put("/session/crates")]
+pub async fn put_session_crates(query: Query<SessionQuery>, data: Json<SessionUpdate>) -> impl Responder {
     if !is_toml_allowed(data.crates.clone()) {
-        return HttpResponse::BadRequest();
+        return HttpResponse::BadRequest()
+            .finish();
     }
-
-    let set_code_is_err = set_container_file(query.session.clone(), "/host/src/main.rs", data.code.clone())
-        .await
-        .is_none();
 
     let crates_str = "
         [package]
@@ -147,13 +130,15 @@ pub async fn put_session_data(
         edition=\"2021\"
     ".to_string() + &data.crates;
 
-    let set_crates_is_err = set_container_file(query.session.clone(), "/host/Cargo.toml", crates_str)
-        .await
-        .is_none();
+    respond_docker_operation!{ set_container_file(&query.session, "/host/Cargo.toml", &crates_str).await }
+}
 
-    if set_code_is_err || set_crates_is_err {
-        HttpResponse::InternalServerError()
-    } else {
-        HttpResponse::NoContent()
+#[post("/session/run")]
+pub async fn run_session_code(query: Query<SessionQuery>) -> impl Responder {
+    respond_docker_operation!{
+        run_container_code(&query.session).await,
+        |res| HttpResponse::Ok()
+            .content_type("text/utf8")
+            .body(res)
     }
 }

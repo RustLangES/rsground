@@ -1,7 +1,6 @@
 
 CREATE TABLE IF NOT EXISTS sessions(
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-	hash TEXT NOT NULL,
-	name TEXT NOT NULL,
-	expires_at TIMESTAMP NOT NULL
-);
+	local_token TEXT NOT NULL,
+	github_token TEXT NOT NULL
+)

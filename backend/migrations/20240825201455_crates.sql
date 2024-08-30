@@ -1,9 +1,0 @@
-
-CREATE TABLE IF NOT EXISTS crates(
-	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-	session_id INTEGER NOT NULL,
-	name TEXT NOT NULL,
-	version TEXT NOT NULL,
-	features TEXT NOT NULL,
-	FOREIGN KEY (session_id) REFERENCES sessions(id)
-);

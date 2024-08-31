@@ -20,7 +20,7 @@ pub async fn clear_containers() {
                 println!("ERROR: There was an error while deleting runner {}.", runner.hash);
             },
             _ => {
-                println!("INFO: Deleting runner {}.", runner.hash);
+                println!("INFO: Deleted runner {}.", runner.hash);
                 deleted.push(runner.hash);
             }
         };
@@ -39,7 +39,7 @@ pub async fn clear_containers() {
             println!("INFO: Deleted {} runner registers agnostic to container existence.", result.rows_affected());
         },
         Err(_) => {
-            println!("ERROR: Couldn't delete runners.");
+            println!("ERROR: Couldn't delete runner registers.");
         },
         _ => {}
     }

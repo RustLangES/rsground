@@ -1,9 +1,9 @@
-use std::ops::Add;
+use std::{env::current_dir, fs::create_dir_all, ops::Add};
 use actix_web::HttpResponse;
 use chrono::{Duration, Utc};
 use futures_util::StreamExt;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
-use shiplift::{ContainerOptions, Error, ExecContainerOptions, ImageListOptions, PullOptions};
+use shiplift::{ContainerOptions, Error, ImageListOptions, PullOptions};
 use sqlx::query;
 use crate::{db, get_docker};
 
@@ -64,31 +64,42 @@ pub async fn create_docker_session() -> Option<String> {
         }
     }
 
+    create_dir_all(format!(".runners/{hash}"))
+        .ok()?;
+
+    let volume_path = current_dir()
+        .ok()?
+        .join(format!(".runners/{hash}"));
+
+    let volume_path = volume_path.to_str()?;
+
     docker.containers()
         .create(
             &ContainerOptions::builder("rust:latest")
                 .name(&name)
+                .memory(256 * 1024 * 1024)
+                .volumes(vec![&format!("{volume_path}:/host")])
                 .cmd(vec!["sleep", "infinity"])
                 .build()
         )
         .await
         .ok()?;
 
-    docker.containers()
-        .get(&name)
+    let container = docker.containers()
+        .get(&name);
+
+    container
         .start()
         .await
         .ok()?;
 
-    docker.containers()
-        .get(&name)
-        .exec(
-            &ExecContainerOptions::builder()
-                .cmd(vec!["cargo", "new", "host", "--bin"])
-                .build()
-        )
-        .next()
-        .await;
+    run_container_command(
+        &hash,
+        &DockerCommand::new()
+            .cmd(vec!["cargo", "init", "host", "--vcs", "none"])
+    )
+        .await
+        .ok()?;
 
     let expiration = Utc::now().add(Duration::seconds(60));
 
@@ -102,8 +113,7 @@ pub async fn create_docker_session() -> Option<String> {
         .is_err();
 
     if insert_is_err {
-        docker.containers()
-            .get(&name)
+        container
             .delete()
             .await
             .ok()?;
@@ -132,7 +142,13 @@ pub async fn delete_docker_session<T: ToString + ?Sized>
     container
         .delete()
         .await
-        .map_err(|_| ContainerRetrivalError::Error)
+        .map_err(|_| ContainerRetrivalError::Error)?;
+
+    Ok(())
+}
+
+pub async fn prune_volumes() {
+
 }
 
 pub async fn run_container_code<T: ToString + ?Sized>

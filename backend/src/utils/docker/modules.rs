@@ -71,14 +71,14 @@ pub async fn create_docker_session() -> Option<String> {
         .ok()?
         .join(format!(".runners/{hash}"));
 
-    let volume_path = volume_path.to_str()?;
+    let _volume_path = volume_path.to_str()?;
 
     docker.containers()
         .create(
             &ContainerOptions::builder("rust:latest")
                 .name(&name)
                 .memory(256 * 1024 * 1024)
-                .volumes(vec![&format!("{volume_path}:/host")])
+                // .volumes(vec![&format!("{volume_path}:/host")])
                 .cmd(vec!["sleep", "infinity"])
                 .build()
         )

@@ -1,0 +1,104 @@
+
+.status-bar {
+	height: 25px;
+	width: 100%;
+
+	background-color: var(--background-color);
+
+	border: 1px solid var(--border-color);
+
+	display: flex;
+
+	flex: 1;
+
+	color: white;
+
+	padding: 5px 20px;
+}
+
+.status-bar > div {
+	width: calc(50% - 20px);
+	height: 100%;
+
+	display: flex;
+
+	align-items: center;
+
+	gap: 40px;
+}
+
+.status-bar > .status-bar-left {
+	justify-content: left;
+}
+
+.status-bar > .status-bar-right {
+	justify-content: right;
+}
+
+.status-bar > div > div {
+	display: flex;
+	
+	height: 100%;
+
+	gap: 10px;
+
+	align-items: center;
+	justify-content: center;
+
+	position: relative;
+}
+
+.status-bar > div > div:not(:last-child)::after {
+	content: "";
+
+	position: absolute;
+
+	height: 70%;
+	width: 1px;
+
+	background-color: gray;
+
+	left: calc(100% + 20px);
+}
+
+.status-generic > p {
+	white-space: nowrap;
+
+	font-size: 0.8em;
+}
+
+.status-generic > svg {
+	height: 15px;
+	
+	fill: white;
+}
+
+.status-insights,
+.status-insights > div {
+	display: flex;
+
+	justify-content: center;
+	align-items: center;
+}
+
+.status-insights > div {
+	gap: 5px;
+}
+
+.status-insights > div > p {
+	font-size: 0.9em;
+}
+
+.status-insights > div > svg {
+	height: 15px;
+}
+
+.status-line-count > p {
+	color: gray;
+
+	font-size: 0.9em;
+}
+
+.status-indentation > p {
+	font-size: 0.8em;
+}

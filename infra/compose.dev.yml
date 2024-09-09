@@ -1,0 +1,26 @@
+services:
+  frontend:
+    container_name: frontend
+    depends_on:
+      - backend
+    build:
+      context: ../frontend
+      dockerfile: ../infra/images/fe.Dockerfile
+    volumes:
+      - ../frontend:/frontend
+    command: npm run dev
+    restart: unless-stopped
+    ports:
+      - 5173:5173
+
+  backend:
+    container_name: backend
+    build:
+      context: ../backend
+      dockerfile: ../infra/images/be.dev.Dockerfile
+    volumes:
+      - ../backend:/backend
+    command: sh -c "cargo run src/main.rs --watch"
+    restart: unless-stopped
+    ports:
+      - 5174:5174

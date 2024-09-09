@@ -13,6 +13,7 @@ export default defineConfig({
 				xfwd: true,
 				rewrite: (path: string) => path.replace(/^\/api/, '')
 			}
-		}
+		},
+		host: true
 	}
 })

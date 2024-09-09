@@ -30,7 +30,10 @@ interface StatusBarProps {
 	cursor?: CursorInsights;
 }
 
-export default function StatusBar(status: StatusBarProps): ReactElement {
+export default function StatusBar({ github, insights, container, cursor }: StatusBarProps): ReactElement {
+
+	console.info(github, insights, container, cursor); //  Build fails if not used
+
 	return <div className="status-bar">
 		<div className="status-bar-left">
 			<div className="status-generic">

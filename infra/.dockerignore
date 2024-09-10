@@ -3,3 +3,5 @@ target
 .dockerignore
 .git
 .gitignore
+.runners
+*.env

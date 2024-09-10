@@ -20,7 +20,7 @@ services:
       dockerfile: ../infra/images/be.dev.Dockerfile
     volumes:
       - ../backend:/backend
-    command: sh -c "cargo run src/main.rs --watch"
+    command: sh -c "cargo watch -x run"
     restart: unless-stopped
     ports:
       - 5174:5174

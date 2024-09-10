@@ -2,11 +2,9 @@
 FROM node:alpine3.20 AS build-runner
 WORKDIR /tmp/frontend
 COPY package*.json ./
-RUN npm i --ignore-scripts
+RUN npm install
 COPY src ./src
-COPY tsconfig.json .
-COPY tsconfig.node.json .
-COPY tsconfig.app.json .
+COPY tsconfig.* .
 COPY vite.config.ts .
 COPY index.html .
 RUN npm run build

@@ -5,7 +5,7 @@ services:
       - backend
     build:
       context: ../frontend
-      dockerfile: ../infra/images/fe.Dockerfile
+      dockerfile: ../infra/images/fe.prod.Dockerfile
     restart: unless-stopped
     ports:
       - 5173:5173
@@ -16,7 +16,7 @@ services:
       - ../backend/.env
     build:
       context: ../backend
-      dockerfile: ../infra/images/be.Dockerfile
+      dockerfile: ../infra/images/be.prod.Dockerfile
       args:
         DB: "sqlite://data.db"
     restart: unless-stopped

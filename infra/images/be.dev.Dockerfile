@@ -1,19 +1,17 @@
-## Idea came from: https://dev.to/jorgecastro/hot-reload-in-rust-with-cargo-watch-and-docker-5d25
 FROM rust:slim-bookworm
 
-ARG DATABASE_URL="sqlite://data.db"
-ENV DATABASE_URL=$DATABASE_URL
+ENV DATABASE_URL="sqlite://data.db"
 
-RUN apt-get update && apt-get install -y \
+## RUN already updates packages https://app.deepsource.com/directory/analyzers/docker/issues/DOK-DL3009
+RUN apt-get install --no-install-recommends -y \
     build-essential \
     libssl-dev \
     ca-certificates \
     openssl \
     tzdata \
     pkg-config \
-    gcc
-RUN cargo install cargo-watch
+    gcc &&\
+	cargo install cargo-watch
 
-ENV RUST_BACKTRACE=full
 WORKDIR /backend
 COPY . .

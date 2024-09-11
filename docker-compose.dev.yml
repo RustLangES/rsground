@@ -1,0 +1,13 @@
+services:
+    app:
+        build:
+            context: .
+            dockerfile: dev.dockerfile
+        volumes:
+            - ./backend:/app/backend
+            - ./frontend:/app/frontend
+        ports:
+            - "3000:5173"
+        command: >
+            sh -c "cd frontend && npm run dev & cd backend && cargo watch -x run"
+

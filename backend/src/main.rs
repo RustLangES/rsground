@@ -13,7 +13,7 @@ async fn main() -> Result<()> {
     dotenv().ok();
 
     if let Err(err) = register_crons().await {
-        println!("ERROR: Couldn't register crons: {err}")
+        println!("ERROR: Couldn't register crons: {err}");
     }
 
     HttpServer::new(move || {

@@ -8,9 +8,9 @@ function App(): ReactElement {
 
 	return <>
 		<StatusBar 
-			github={{text: undefined, loading: false}} 
-			insights={{errors: 0, warnings: 0}} 
-			container={{ text: undefined, loading: false}} 
+			github={{text: undefined, loading: false}}
+			insights={{errors: 0, warnings: 0}}
+			container={{ text: undefined, loading: false}}
 		/>
 	</>;
 }

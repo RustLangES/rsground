@@ -11,7 +11,7 @@ updates:
     schedule:
       interval: "daily"
 
-  - package-ecosystem: "rust"
+  - package-ecosystem: "cargo"
     directory: "/backend"
     schedule:
       interval: "weekly"

@@ -28,6 +28,8 @@ RUN echo \
 $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
 tee /etc/apt/sources.list.d/docker.list > /dev/null
 
+## TODO: fix versions for the containerd.io, docker-buildx-plugin and docker-compose-plugin
+## packages, I couldn't find these versions as docker doesn't have a registry finder.
 RUN apt-get update \
 && apt-get install -y --no-install-recommends \
 docker-ce=5:27.1.1-1~debian.12~bookworm \

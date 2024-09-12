@@ -1,5 +1,3 @@
-setup:
-	@echo "Setting up the environment..."
 
 dev:
 	cd frontend && npm run dev &
@@ -7,4 +5,7 @@ dev:
 	|| pkill -9 webpack && pkill -9 cargo
 
 dev-d:
-    docker compose -f docker-compose.dev.yml up --build
+	if ! which cargo-watch > /dev/null; then cargo install cargo-watch; fi;
+	mkdir -p ./.build-context;
+	cp "$(which cargo-watch)" ./.build-context/cargo-watch;
+	docker compose -f docker-compose.dev.yml up --build;

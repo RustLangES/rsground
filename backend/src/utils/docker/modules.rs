@@ -28,7 +28,7 @@ impl ContainerRetrivalError {
     }
 }
 
-pub async fn create_docker_session() -> Option<String> {
+pub async fn create_docker_session() -> Result<String, String> {
     let docker = get_docker!();
     let mut rng = thread_rng();
     let hash = (0..16)
@@ -58,20 +58,22 @@ pub async fn create_docker_session() -> Option<String> {
             );
 
         while let Some(status) = stream.next().await {
-            if status.is_err() {
-                return None;
+            if let Err(err) = status {
+                return Err(err.to_string());
             }
         }
     }
 
     create_dir_all(format!(".runners/{hash}"))
-        .ok()?;
+        .map_err(|err| err.to_string())?;
 
     let volume_path = current_dir()
-        .ok()?
+        .map_err(|err| err.to_string())?
         .join(format!(".runners/{hash}"));
 
-    let _volume_path = volume_path.to_str()?;
+    let _volume_path = volume_path
+        .to_str()
+        .ok_or("Couldn't convert volume path to string.")?;
 
     docker.containers()
         .create(
@@ -83,7 +85,7 @@ pub async fn create_docker_session() -> Option<String> {
                 .build()
         )
         .await
-        .ok()?;
+        .map_err(|err| err.to_string())?;
 
     let container = docker.containers()
         .get(&name);
@@ -91,7 +93,7 @@ pub async fn create_docker_session() -> Option<String> {
     container
         .start()
         .await
-        .ok()?;
+        .map_err(|err| err.to_string())?;
 
     run_container_command(
         &hash,
@@ -99,7 +101,7 @@ pub async fn create_docker_session() -> Option<String> {
             .cmd(vec!["cargo", "init", "host", "--vcs", "none"])
     )
         .await
-        .ok()?;
+        .map_err(|_| "Couldn't create a new cargo project.")?;
 
     let expiration = Utc::now().add(Duration::seconds(60));
 
@@ -116,12 +118,12 @@ pub async fn create_docker_session() -> Option<String> {
         container
             .delete()
             .await
-            .ok()?;
+            .map_err(|err| err.to_string())?;
 
-        return None;
+        return Err("Couldn't insert runner data.".to_string());
     }
 
-    Some(hash)
+    Ok(hash)
 }
 
 pub async fn delete_docker_session<T: ToString + ?Sized>

@@ -15,9 +15,10 @@ pub async fn post_new_session(query: Query<RegisterSessionQuery>) -> impl Respon
     if query.session.is_none() {
         return create_docker_session()
             .await
-            .map_or(
-                HttpResponse::InternalServerError()
-                    .into(),
+            .map_or_else(
+                |err| HttpResponse::InternalServerError()
+                    .content_type("text/utf8")
+                    .body(err),
                 |body| HttpResponse::Ok()
                     .content_type("text/utf8")
                     .body(body)

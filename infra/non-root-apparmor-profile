@@ -1,0 +1,7 @@
+include <tunables/global>
+include <abstractions/base>
+
+/app {
+    deny capability sys_admin, # Deny privilege escalation
+    /app ix, # Allow execution of any file in the app directory
+}

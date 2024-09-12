@@ -1,0 +1,17 @@
+version: 2
+updates:
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "rust"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"

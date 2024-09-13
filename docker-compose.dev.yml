@@ -5,17 +5,18 @@ services:
             context: .
             dockerfile: dev.dockerfile
         ## https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html
-##      security_opt:
-##          - seccomp:./infra/seccomp.json
-##          - apparmor:./infra/non-root-apparmor-profile
-##          - no-new-privileges:true
+        # security_opt:
+        #     - seccomp:./infra/seccomp.json
+        #     - apparmor:./infra/non-root-apparmor-profile
+        #     - no-new-privileges:true
         volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
             - ./.backend-output:/.backend-output
             - ./backend:/app/backend
             - ./frontend:/app/frontend
         ## https://dockerlabs.collabnix.com/advanced/security/capabilities/
-##      cap_add: ["DAC_OVERRIDE"]
-##      cap_drop: ["ALL"]
+        # cap_add: ["DAC_OVERRIDE"]
+        # cap_drop: ["ALL"]
         ports:
             - "3000:5173"
             - "3001:5174"

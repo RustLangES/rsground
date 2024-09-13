@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
             .service(auth)
             .service(auth_callback)
     })
-        .bind(("127.0.0.1", 5174))?
+        .bind(("localhost", 5174))?
         .run()
         .await
 }

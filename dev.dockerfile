@@ -10,6 +10,7 @@ bash=5.2.15-2+b7 \
 libssl3=3.0.14-1~deb12u2 \
 openssl=3.0.14-1~deb12u2 \
 pkg-config=1.8.1-1 \
+sudo=1.9.13p3-1+deb12u1 \
 && apt-get clean \
 && rm -rf /var/lib/apt/lists/*
 
@@ -22,6 +23,8 @@ curl=7.88.1-10+deb12u7 \
 && chmod a+r /etc/apt/keyrings/docker.asc \
 && apt-get clean \
 && rm -rf /var/lib/apt/lists/*
+
+SHELL ["/bin/bash", "-c"]
 
 RUN echo \
 "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
@@ -45,10 +48,6 @@ RUN groupadd rsground \
 && usermod -aG docker rsground
 
 ## TODO: start docker daemon, PD: this does not work.
-
-## RUN dockerd --host=unix///var/run/docker.sock &
-
-USER rsground
 
 RUN cargo install cargo-watch
 

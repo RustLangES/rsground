@@ -1,0 +1,23 @@
+services:
+    rsground:
+        container_name: rsground-dev
+        build:
+            context: .
+            dockerfile: dev.dockerfile
+            args:
+                USERNAME: ${USER}
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - ../backend:/app/backend
+            - ../frontend:/app/frontend
+        ports:
+            - "3000:5173"
+        command:
+            sh -c "cd frontend && npm run dev &
+            cd backend && cargo watch -x run"
+        networks:
+            - rsground_net
+
+networks:
+    rsground_net:
+        driver: bridge

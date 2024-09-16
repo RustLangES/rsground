@@ -1,7 +1,6 @@
-use std::sync::OnceLock;
+use std::{env::var, sync::OnceLock};
 use sqlx::{Pool, Sqlite, SqlitePool};
 
-const DB_URL: &str = "sqlite://data.db";
 static DB_CELL: OnceLock<Pool<Sqlite>> = OnceLock::new();
 
 pub async fn get_db_connection<'r>() -> &'r Pool<Sqlite> {
@@ -9,7 +8,7 @@ pub async fn get_db_connection<'r>() -> &'r Pool<Sqlite> {
         return connection;
     }
  
-    let connection = SqlitePool::connect(DB_URL)
+    let connection = SqlitePool::connect(&var("DATABASE_URL").unwrap())
         .await
         .unwrap();
 

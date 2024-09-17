@@ -1,9 +1,8 @@
 use std::io::Result;
 use actix_web::{web::get, App, HttpServer};
 use flexi_logger::{Duplicate, FileSpec, Logger};
-use log::error;
 use routes::sessions::session_ws;
-use utils::{logger::{format_colored_log, format_log}, runners::Runner};
+use utils::logger::{format_colored_log, format_log};
 
 mod routes;
 mod utils;

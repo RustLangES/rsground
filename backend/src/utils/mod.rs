@@ -1,3 +1,3 @@
 
-pub mod runners;
+pub mod runner;
 pub mod logger;

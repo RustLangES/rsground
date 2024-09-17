@@ -1,28 +1,31 @@
 use std::io::Result;
-use actix_web::{main, App, HttpServer};
-use crons::register::register_crons;
-use dotenv::dotenv;
-use routes::{auth::{auth_callback, auth}, sessions::{post_new_session, run_session_code}};
+use actix_web::{web::get, App, HttpServer};
+use flexi_logger::{Duplicate, FileSpec, Logger};
+use log::error;
+use routes::sessions::session_ws;
+use utils::{logger::{format_colored_log, format_log}, runners::Runner};
 
-pub mod routes;
-pub mod utils;
-pub mod crons;
+mod routes;
+mod utils;
 
-#[main]
+#[actix_web::main]
 async fn main() -> Result<()> {
-    dotenv().ok();
+    Logger::try_with_str("info")
+        .unwrap()
+        .log_to_file(
+            FileSpec::default()
+                .basename("backend")
+                .use_timestamp(false)
+        )
+        .duplicate_to_stdout(Duplicate::Info)
+        .format_for_files(format_log)
+        .format_for_stdout(format_colored_log)
+        .start()
+        .unwrap();
 
-    if let Err(err) = register_crons().await {
-        println!("ERROR: Couldn't register crons: {err}")
-    }
-
-    HttpServer::new(move || {
-        App::new()
-            .service(post_new_session)
-            .service(run_session_code)
-            .service(auth)
-            .service(auth_callback)
-    })
+    HttpServer::new(|| App::new()
+        .route("/session", get().to(session_ws))
+    )
         .bind(("127.0.0.1", 5174))?
         .run()
         .await

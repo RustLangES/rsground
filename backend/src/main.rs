@@ -1,8 +1,9 @@
 use std::io::Result;
 use actix_web::{web::get, App, HttpServer};
 use flexi_logger::{Duplicate, FileSpec, Logger};
+use log::{info, warn};
 use routes::sessions::session_ws;
-use utils::logger::{format_colored_log, format_log};
+use utils::{analyzer::analyzer_version, logger::{format_colored_log, format_log}};
 
 mod routes;
 mod utils;
@@ -13,7 +14,7 @@ async fn main() -> Result<()> {
         .unwrap()
         .log_to_file(
             FileSpec::default()
-                .basename("backend")
+                .basename("rsground_backend")
                 .use_timestamp(false)
         )
         .duplicate_to_stdout(Duplicate::Info)
@@ -21,6 +22,12 @@ async fn main() -> Result<()> {
         .format_for_stdout(format_colored_log)
         .start()
         .unwrap();
+
+    if let Some(version) = analyzer_version() {
+        info!("Rust analyzer found: {version}");
+    } else {
+        warn!("Rust analyzer is not found in the system, LSP features will be disabled.");
+    }
 
     HttpServer::new(|| App::new()
         .route("/session", get().to(session_ws))

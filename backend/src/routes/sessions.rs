@@ -3,7 +3,7 @@ use actix::prelude::*;
 use actix_web_actors::ws::{Message, ProtocolError, WebsocketContext, WsResponseBuilder};
 use actix_web::{web::Payload, error::ErrorInternalServerError, Error, HttpRequest, HttpResponse};
 use log::{error, info};
-use crate::utils::runner::Runner;
+use crate::utils::{communication::RunnerRequest, runner::Runner};
 
 struct SessionWsActor {
     runner: Runner
@@ -26,8 +26,11 @@ impl Actor for SessionWsActor {
 impl StreamHandler<Result<Message, ProtocolError>> for SessionWsActor {
     fn handle(&mut self, msg: Result<Message, ProtocolError>, ctx: &mut Self::Context) {
         match msg {
-            Ok(Message::Text(_)) => {
-                ctx.text("received!");
+            Ok(Message::Text(text)) => {
+                ctx.text(match RunnerRequest::try_from(&text.to_string()) {
+                    Ok(request) => request.act(&self.runner).to_string(),
+                    Err(err) => err.to_string()
+                })
             },
             Ok(Message::Ping(ping)) => {
                 ctx.pong(&ping);

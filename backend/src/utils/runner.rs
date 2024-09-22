@@ -38,7 +38,7 @@ pub enum RunnerUpdateError {
 }
 
 // TODO: Implement another way to check the package string
-// it must only be the [packages] section on the Cargo.toml.
+// it must only be the [dependencies] section on the Cargo.toml.
 
 #[derive(Deserialize)]
 struct Dependencies {
@@ -137,6 +137,10 @@ impl Runner {
 
         self.update_internal_file("Cargo.toml", &(base_cargo_toml + code))
     }
+
+    pub fn run_code(&self) {
+        
+    }
 }
 
 impl RequestActor for Runner {
@@ -144,7 +148,7 @@ impl RequestActor for Runner {
 
     fn act(&self, op: &RunnerRequestOp, content: &Option<Self::ContentType>)
     -> Result<(), ActError> {
-        // TODO: implement run code.
+        
 
         let content = match content {
             Some(content) => content,

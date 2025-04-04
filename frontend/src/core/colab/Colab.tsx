@@ -1,19 +1,14 @@
 import Dialog from "@corvu/dialog";
-import Popover from "@corvu/popover";
-import {
-  FaBrandsGithub,
-  FaSolidChevronDown,
-  FaSolidLock,
-  FaSolidUser,
-} from "solid-icons/fa";
+import { FaBrandsGithub, FaSolidLock } from "solid-icons/fa";
+import { For } from "solid-js";
+
+import { TextField } from "../../components/TextField";
+import { Switchbox } from "../../components/Switchbox";
+import { SelectField } from "../../components/SelectField";
 
 import { isColabOpen, setIsColabOpen } from "./store";
 
 import styles from "./Colab.module.sass";
-import { For } from "solid-js";
-import { TextField } from "../../components/TextField";
-import { Switchbox } from "../../components/Switchbox";
-import { SelectField } from "../../components/SelectField";
 
 export function Colab() {
   const requestUsers = ["CHIWO", "Jopzgo", "gg0074x", "Otro"];
@@ -28,11 +23,6 @@ export function Colab() {
           <div class={styles.container}>
             <div>
               <h3 class={styles.subtitle}>Room settings</h3>
-
-              <TextField
-                beforeIcon={<FaSolidUser />}
-                placeholder="Write your name"
-              />
 
               <label class={styles.checkbox_input}>
                 Public room

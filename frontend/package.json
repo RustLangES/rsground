@@ -33,7 +33,8 @@
     "solid-icons": "^1.1.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.0",
-    "vite-plugin-solid": "^2.11.6"
+    "vite-plugin-solid": "^2.11.6",
+    "vite-tsconfig-paths": "^5.1.4"
   },
   "dependencies": {
     "solid-js": "1.7.x"

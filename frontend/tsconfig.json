@@ -9,6 +9,14 @@
     "jsxImportSource": "solid-js",
     "types": ["vite/client"],
     "noEmit": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "@features/*": ["./src/features/*"],
+      "@icons/*": ["./src/icons/*"],
+      "@components/*": ["./src/components/*"],
+      "@services": ["./src/services/index.ts"],
+      "@services/*": ["./src/services/*"]
+    }
   }
 }

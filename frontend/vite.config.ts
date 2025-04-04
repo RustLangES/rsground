@@ -1,15 +1,16 @@
-import { defineConfig } from 'vite';
-import solidPlugin from 'vite-plugin-solid';
+import { defineConfig } from "vite";
+import solidPlugin from "vite-plugin-solid";
+import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
-  plugins: [solidPlugin()],
+  plugins: [solidPlugin(), tsconfigPaths()],
   optimizeDeps: {
-    include: ['@codemirror/state', '@codemirror/view'],
+    include: ["@codemirror/state", "@codemirror/view"],
   },
   server: {
     port: 3000,
   },
   build: {
-    target: 'esnext',
+    target: "esnext",
   },
 });

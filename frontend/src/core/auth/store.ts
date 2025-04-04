@@ -25,7 +25,7 @@ export const isGithubLogged = () => !!authInfo()?.avatar_url;
 
 export const [isLoadingAuthInfo, setIsLoadingAuthInfo] = createSignal(false);
 
-export const [isAuthOpen, setIsAuthOpen] = createSignal(true);
+export const [isAuthOpen, setIsAuthOpen] = createSignal(false);
 
 // Sync auth info in local storage
 observable(authInfo).subscribe((authInfo) => {

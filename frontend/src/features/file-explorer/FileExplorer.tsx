@@ -8,7 +8,7 @@ import { Index } from "solid-js";
 
 import styles from "./FileExplorer.module.sass";
 import { File, fileExplorer, FileNode, FileNodeKind, Folder } from "./store";
-import { ContextMenu } from "../../context-menu/ContextMenu";
+import { ContextMenu } from "../context-menu/ContextMenu";
 
 function RenderFolder({ data }: { data: Folder }) {
   return (

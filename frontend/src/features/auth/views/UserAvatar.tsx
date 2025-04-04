@@ -1,9 +1,9 @@
 import { createMemo, Show } from "solid-js";
+import { SolidUserIcon } from "@icons/SolidUser";
 
-import { authInfo } from "./store";
+import { authInfo } from "../stores";
 
 import styles from "./UserAvatar.module.sass";
-import { SolidUserIcon } from "../../icons/SolidUser";
 
 export function RawUserAvatar() {
   const has_avatar = createMemo(() => !!authInfo()?.avatar_url);

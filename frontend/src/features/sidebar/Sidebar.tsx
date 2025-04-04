@@ -1,14 +1,15 @@
 import { ParentProps } from "solid-js";
 import Tooltip from "@corvu/tooltip";
-import { FaSolidShareNodes, FaSolidUser } from "solid-icons/fa";
+import { FaSolidShareNodes } from "solid-icons/fa";
 
-import { AuthModal, setIsAuthOpen } from "../auth";
-import { Colab, setIsColabOpen } from "../colab";
-import { FileExplorer } from "./file-explorer";
+import { setIsAuthOpen } from "@features/auth/stores";
+import { AuthModal, RawUserAvatar } from "@features/auth/views";
+import { Colab, setIsColabOpen } from "@features/colab";
+import { FileExplorer } from "@features/file-explorer";
+
 import { isSidebarOpen, setIsSidebarOpen } from "./store";
 
 import style from "./Sidebar.module.sass";
-import { RawUserAvatar } from "../auth/UserAvatar";
 
 interface SidebarNavItemProps {
   /**
@@ -29,7 +30,7 @@ function SidebarNavItem(props: ParentProps<SidebarNavItemProps>) {
           as="button"
           classList={{
             [style.nav_item]: true,
-            [style.nav_item_full]: props.fullSized
+            [style.nav_item_full]: props.fullSized,
           }}
           onClick={props.onClick}
         >

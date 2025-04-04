@@ -1,6 +1,5 @@
-import { batch, createSignal, observable } from "solid-js";
-import { generateRandomName } from "./random_name";
-import { AuthInfo, loginGuest } from "./service";
+import { createSignal, observable } from "solid-js";
+import { AuthInfo } from "../types";
 
 export const AUTH_KEY = "auth";
 
@@ -25,24 +24,11 @@ export const isGithubLogged = () => !!authInfo()?.avatar_url;
 
 export const [isLoadingAuthInfo, setIsLoadingAuthInfo] = createSignal(false);
 
-export const [isAuthOpen, setIsAuthOpen] = createSignal(false);
-
 // Sync auth info in local storage
 observable(authInfo).subscribe((authInfo) => {
   if (authInfo) {
     window.localStorage.setItem(AUTH_KEY, JSON.stringify(authInfo));
   } else {
-    window.localStorage.removeItem(AUTH_KEY)
+    window.localStorage.removeItem(AUTH_KEY);
   }
-})
-
-export async function logout() {
-  setIsLoadingAuthInfo(true);
-
-  const authInfo = await loginGuest(generateRandomName())
-
-  batch(() => {
-    setAuthInfo(authInfo);
-    setIsLoadingAuthInfo(false);
-  });
-}
+});

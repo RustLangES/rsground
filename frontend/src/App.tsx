@@ -2,9 +2,9 @@ import "./App.sass";
 import "../public/fonts/inter.css"
 
 import { Component } from "solid-js";
-import { Sidebar } from "./core/sidebar";
-import { Panels } from "./core/panels";
-import { interceptAuthCallback } from "./core/auth";
+import { Sidebar } from "./features/sidebar";
+import { Panels } from "./features/panels";
+import { interceptAuthCallback } from "./features/auth";
 
 const App: Component = () => {
   interceptAuthCallback();

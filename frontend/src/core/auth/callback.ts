@@ -1,5 +1,6 @@
 import { batch } from "solid-js";
 import { setAuthInfo, setIsLoadingAuthInfo } from "./store";
+import { authCallback } from "./service";
 
 const REDIRECT_KEY = "redirect_url";
 
@@ -16,10 +17,8 @@ export function interceptAuthCallback() {
 
 async function handleAuthCallback(code: string) {
   setIsLoadingAuthInfo(true);
-  const res = await fetch(
-    `${import.meta.env.VITE_BACKEND_HOST}/auth/callback?code=${code}`,
-  );
-  const authInfo = await res.json();
+
+  const authInfo = await authCallback(code);
 
   batch(() => {
     setAuthInfo(authInfo);
@@ -27,11 +26,15 @@ async function handleAuthCallback(code: string) {
   });
 
   const redirect_url = window.localStorage.getItem(REDIRECT_KEY) ?? "/";
-  console.log("REDIRECT:", redirect_url);
+  window.localStorage.removeItem(REDIRECT_KEY)
 
   const url = new URL(window.location.href);
   url.search = "";
   url.pathname = redirect_url;
 
-  window.location.href = url.href;
+  window.history.replaceState({}, "", url)
+}
+
+export function setRedirectUrl() {
+  window.localStorage.setItem(REDIRECT_KEY, window.location.pathname)
 }

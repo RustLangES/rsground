@@ -1,31 +1,23 @@
 import { ParentProps } from "solid-js";
-import Accordion from "@corvu/accordion";
 import Tooltip from "@corvu/tooltip";
 import { FaSolidShareNodes, FaSolidUser } from "solid-icons/fa";
 
+import { AuthModal, setIsAuthOpen } from "../auth";
 import { Colab, setIsColabOpen } from "../colab";
-
 import { FileExplorer } from "./file-explorer";
 import { isSidebarOpen, setIsSidebarOpen } from "./store";
 
 import style from "./Sidebar.module.sass";
-
-function SidebarItem(props: ParentProps<{ title: string }>) {
-  return (
-    <Accordion.Item>
-      <Accordion.Trigger class={style.item_trigger}>
-        {props.title}
-      </Accordion.Trigger>
-
-      <Accordion.Content class={style.item_content}>
-        <div>{props.children}</div>
-      </Accordion.Content>
-    </Accordion.Item>
-  );
-}
+import { RawUserAvatar } from "../auth/UserAvatar";
 
 interface SidebarNavItemProps {
+  /**
+   * Don't add padding in the button, perfect for "background" images
+   */
+  fullSized?: boolean;
+
   tooltip?: string;
+
   onClick?: () => void;
 }
 
@@ -35,7 +27,10 @@ function SidebarNavItem(props: ParentProps<SidebarNavItemProps>) {
       <Tooltip placement="bottom" openDelay={200} hoverableContent={false}>
         <Tooltip.Trigger
           as="button"
-          class={style.nav_item}
+          classList={{
+            [style.nav_item]: true,
+            [style.nav_item_full]: props.fullSized
+          }}
           onClick={props.onClick}
         >
           {props.children}
@@ -77,8 +72,14 @@ export function Sidebar() {
             </svg>
           </SidebarNavItem>
 
-          <SidebarNavItem tooltip="Auth">
-            <FaSolidUser />
+          <SidebarNavItem
+            fullSized
+            tooltip="Auth"
+            onClick={() => setIsAuthOpen(true)}
+          >
+            <AuthModal>
+              <RawUserAvatar />
+            </AuthModal>
           </SidebarNavItem>
 
           <SidebarNavItem tooltip="Colab" onClick={() => setIsColabOpen(true)}>

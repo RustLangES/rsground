@@ -1,13 +1,8 @@
-import { createSignal, observable, useTransition } from "solid-js";
+import { batch, createSignal, observable } from "solid-js";
+import { generateRandomName } from "./random_name";
+import { AuthInfo, loginGuest } from "./service";
 
 export const AUTH_KEY = "auth";
-
-export interface AuthInfo {
-  jwt?: string;
-  username?: string;
-  name?: string;
-  avatar_url: string;
-}
 
 // Use previous auth info in local storage
 let prevAuthInfo: AuthInfo | null = null;
@@ -26,9 +21,28 @@ export const [authInfo, setAuthInfo] = createSignal<AuthInfo | null>(
   prevAuthInfo,
 );
 
+export const isGithubLogged = () => !!authInfo()?.avatar_url;
+
 export const [isLoadingAuthInfo, setIsLoadingAuthInfo] = createSignal(false);
+
+export const [isAuthOpen, setIsAuthOpen] = createSignal(true);
 
 // Sync auth info in local storage
 observable(authInfo).subscribe((authInfo) => {
-  window.localStorage.setItem(AUTH_KEY, JSON.stringify(authInfo));
+  if (authInfo) {
+    window.localStorage.setItem(AUTH_KEY, JSON.stringify(authInfo));
+  } else {
+    window.localStorage.removeItem(AUTH_KEY)
+  }
 })
+
+export async function logout() {
+  setIsLoadingAuthInfo(true);
+
+  const authInfo = await loginGuest(generateRandomName())
+
+  batch(() => {
+    setAuthInfo(authInfo);
+    setIsLoadingAuthInfo(false);
+  });
+}

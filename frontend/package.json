@@ -25,6 +25,7 @@
     "@lezer/highlight": "^1.2.1",
     "@lezer/lr": "^1.4.2",
     "@solid-codemirror/codemirror": "^1.0.4",
+    "@types/node": "^22.14.0",
     "codemirror": "^6.0.1",
     "dockview-core": "^4.2.1",
     "prettier": "^3.5.3",

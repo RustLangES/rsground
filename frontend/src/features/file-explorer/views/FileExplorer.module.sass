@@ -1,3 +1,5 @@
+@use "../../../styles/mixins" as *
+
 .container
   --file-explorer-syncing: var(--colors-secondary-200)
 
@@ -35,9 +37,8 @@
     background: linear-gradient(to right, transparent, var(--file-explorer-syncing) 50px, transparent 100px);
     background-position-x: -90px
     background-repeat: no-repeat
-    animation: syncing linear 2s infinite alternate
 
-    @keyframes syncing 
+    +animate(syncing, linear 2s infinite alternate)
       0%
         background-position-x: -90px
       50%

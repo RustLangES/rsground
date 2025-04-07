@@ -8,11 +8,12 @@ import { Index } from "solid-js";
 
 import { ContextMenu } from "@features/context-menu/views";
 
-import { File, fileExplorer, FileNode, FileNodeKind, Folder } from "./store";
+import { fileExplorer} from "../stores";
+import { FileExplorerNode, FileNode, FileNodeKind, FolderNode } from "../types";
 
 import styles from "./FileExplorer.module.sass";
 
-function RenderFolder({ data }: { data: Folder }) {
+function RenderFolder({ data }: { data: FolderNode }) {
   return (
     <li class={styles.entry_folder}>
       <details>
@@ -40,7 +41,7 @@ function RenderFolder({ data }: { data: Folder }) {
   );
 }
 
-function RenderFile({ data }: { data: File }) {
+function RenderFile({ data }: { data: FileNode }) {
   return (
     <ContextMenu
       as="li"
@@ -62,7 +63,7 @@ function RenderFile({ data }: { data: File }) {
   );
 }
 
-function RenderNodes({ nodes }: { nodes: FileNode[] }) {
+function RenderNodes({ nodes }: { nodes: FileExplorerNode[] }) {
   return (
     <Index each={nodes}>
       {(node_) => {

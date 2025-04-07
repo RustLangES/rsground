@@ -6,7 +6,7 @@ import { setIsAuthOpen } from "@features/auth/stores";
 import { AuthModal, RawUserAvatar } from "@features/auth/views";
 import { setIsColabOpen } from "@features/colab/stores";
 import { Colab } from "@features/colab/views";
-import { FileExplorer } from "@features/file-explorer";
+import { FileExplorer } from "@features/file-explorer/views";
 
 import { isSidebarOpen, setIsSidebarOpen } from "./store";
 

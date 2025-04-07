@@ -1,13 +1,12 @@
-.base
-  background: #222222
-  border: 1px solid #000
-  border-radius: 8px
-  box-shadow: 2px 2px 0 0 #000
-  color: white
-  font-size: .8rem
+@use "../styles/mixins" as *
 
-  display: flex
-  align-items: center
+.base
+  +neobrutalism
+  +center(flex-y)
+
+  background: var(--surface2-background)
+  color: var(--surface2-foreground)
+  font-size: .8rem
 
   &:hover
     filter: brightness(0.8)
@@ -22,14 +21,14 @@
     transform: translateY(1px)
 
 .options
+  +neobrutalism
+
   z-index: 3
 
   display: flex
   flex-direction: column
-  background: #3D3D3D
-  border: 2px solid #000
-  border-radius: 8px
-  box-shadow: 2px 2px 0 0 #000
+  background: var(--surface-background)
+  color: var(--surface-foreground)
   overflow: hidden
 
   transform: translateX(5px)
@@ -37,18 +36,14 @@
   transform-origin: top left
 
   &[data-open]
-    animation: open-options 100ms linear;
-
-    @keyframes open-options
+    +animate(open-options 100ms linear)
       0%
         scale: 0
       100%
         scale: 1
 
   &[data-closed]
-    animation: closed-options 100ms linear;
-
-    @keyframes closed-options
+    +animate(closed-options 100ms linear)
       0%
         scale: 1
       100%
@@ -61,9 +56,10 @@
   > input
     -webkit-appearance: none
     appearance: none
+    width: 0
 
     &:checked + span
-      background: #D9D6FE
+      background: var(--colors-secondary-200)
       color: black
 
   > span
@@ -74,5 +70,5 @@
 
     &:hover
       filter: brightness(0.8)
-      background: #3D3D3D
+      background: var(--surface-background)
 

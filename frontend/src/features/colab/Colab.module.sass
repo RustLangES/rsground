@@ -1,3 +1,5 @@
+@use "../../styles/mixins" as *
+
 .overlay
   position: fixed
   inset: 0
@@ -5,30 +7,30 @@
   z-index: 3
 
 .content
+  +neobrutalism(lg)
+
+  +themed_var(title-color, var(--colors-primary-600), var(--colors-primary-400))
+
   z-index: 3
 
   position: fixed
-  top: 50%
-  left: 50%
-  transform: translate(-50%, -50%)
+  +center(position)
   width: max-content
   max-height: 95vh
   max-width: 95vw
   overflow: auto
 
   padding: 1rem 1rem
-  background: #3D3D3D
-  border: 2px solid #000
-  border-radius: 12px
-  box-shadow: 2px 2px 0 0 #000
+  background: var(--surface-background)
+  color: var(--surface-foreground)
 
   display: flex
   flex-direction: column
   gap: .5rem
 
 .container
-  display: flex
-  justify-content: center
+  +center(flex-x)
+
   flex-wrap: wrap
   gap: 2rem
 
@@ -38,55 +40,30 @@
     gap: .5rem
 
 .buttons_container
-  max-width: 250px
-
   display: flex
   justify-content: space-around
   flex-wrap: wrap
   gap: 0.25rem
 
   > button
+    +neobrutalism
+
     padding: 0.25rem 0.5rem
     font-weight: 600
-    background: #FF8637
-    color: #000
-    border: 2px solid #000
-    border-radius: 8px
-    box-shadow: 2px 2px 0 0 #000
+    background: var(--colors-primary-400)
+    color: black
 
 .title
   text-align: center
   margin-bottom: 0rem
-  color: #FF8637
+  color: var(--title-color)
 
 .subtitle
   margin-top: 1rem
 
-.user_container
-  display: flex
-  align-items: center
-  gap: 0.5rem
-
-.user_avatar
-  width: 2em
-  height: 2em
-
-  background: #FF8637
-  color: black
-  border: 2px solid #000
-  border-radius: 9999px
-  box-shadow: 2px 2px 0 0 #000
-
-  display: flex
-  justify-content: center
-  align-items: center
-
-  overflow: hidden
-
 .checkbox_input
-  display: flex
+  +center(flex-y)
   justify-content: space-between
-  align-items: center
 
   > span
     padding-left: 0.5rem
@@ -105,14 +82,14 @@
     list-style-type: none
 
 .member
-  display: flex
+  +center(flex-y)
+
   justify-content: space-between
-  align-items: center
 
 .button_group
-  background: #222222
-  border: 2px solid #000
-  border-radius: 8px
+  +neobrutalism
+
+  background: var(--colors-gray-950)
   color: white
 
   overflow: hidden

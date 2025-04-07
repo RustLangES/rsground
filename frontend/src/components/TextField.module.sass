@@ -1,19 +1,25 @@
-.base
+@use "../styles/mixins" as *
+
+%base
+  +neobrutalism
+  +themed_var(placeholder-color, var(--colors-gray-700), var(--colors-gray-400))
+
   padding: 0.5rem 0.5rem
-  color: white
-  background: #222222
-  border: 1px solid #000
-  border-radius: 8px
-  box-shadow: 2px 2px 0 0 #000
+  background: var(--surface2-background)
+  color: var(--surface2-foreground)
   outline: none
 
 .single
+  @extend %base
+
   &::placeholder
-    color: #888888
+    color: var(--placeholder-color)
 
 .group
-  display: flex
-  align-items: center
+  @extend %base
+
+  +center(flex-y)
+
   gap: 0.5rem
 
   > input
@@ -21,7 +27,9 @@
     background: transparent
     border: none
     outline: none
-    color: white
+    color: currentColor
+    // Firefox is weird
+    padding-left: 2px
 
     &::placeholder
-      color: #888888
+      color: var(--placeholder-color)

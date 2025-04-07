@@ -36,7 +36,6 @@ export function TextField(props: TextFieldProps & ComponentProps<"input">) {
     return (
       <div
         classList={{
-          [styles.base]: true,
           [styles.group]: true,
           [styles.has_before]: hasBefore,
           [styles.has_before_interact]: hasBefore && fieldProps.beforeInteract,
@@ -56,7 +55,6 @@ export function TextField(props: TextFieldProps & ComponentProps<"input">) {
   return (
     <input
       classList={{
-        [styles.base]: true,
         [styles.single]: true,
         [fieldProps.class]: true,
         ...(fieldProps.classList || {}),

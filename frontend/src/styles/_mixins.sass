@@ -1,0 +1,50 @@
+@use "sass:list"
+@use "sass:meta"
+@use "sass:string"
+
+=dark
+  [data-dark] &,
+  &[data-dark]
+    @content
+
+=themed_var($var, $light, $dark)
+  --#{$var}: #{$light}
+  +dark
+    --#{$var}: #{$dark}
+
+=radius($radius: md)
+  @if $radius == sm or $radius == md or $radius == lg or $radius == full
+    border-radius: var(--radius-#{$radius})
+  @else
+    border-radius: #{$radius}
+
+=neobrutalism($radius: md)
+  +radius($radius)
+
+  border: 2px solid #000
+  box-shadow: 2px 2px 0 0 #000
+
+=center($kind: flex)
+  $kinds: string.split($kind, "-", $limit: 1)
+
+  @if list.length($kinds) == 1
+    $kinds: list.append($kinds, "")
+
+  $kind: list.nth($kinds, 1)
+  $axis: list.nth($kinds, 2)
+
+  @if $kind == "flex"
+    display: flex
+
+    @if $axis != "x"
+      align-items: center
+
+    @if $axis != "y"
+      justify-content: center
+
+=animate($name, $args...)
+  @keyframes #{$name}
+    @content
+
+  animation: #{list.append($args, "", $separator: space)}
+  animation-name: $name

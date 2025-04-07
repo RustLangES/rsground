@@ -1,4 +1,6 @@
 .container
+  --file-explorer-syncing: var(--colors-secondary-200)
+
   padding: 0.5rem
 
   details > summary
@@ -8,7 +10,7 @@
     list-style-type: none
 
 .entry_folder
-  color: #D9D6FE
+  color: var(--surface-foreground)
 
   > details 
     > summary
@@ -27,10 +29,10 @@
 .entry
   display: flex
   gap: 0.25rem
-  color: #D9D6FE
+  color: var(--surface-foreground)
 
   &_syncing
-    background: linear-gradient(to right, #D9D6FE00, #D9D6FE22 50px, #D9D6FE00 100px);
+    background: linear-gradient(to right, transparent, var(--file-explorer-syncing) 50px, transparent 100px);
     background-position-x: -90px
     background-repeat: no-repeat
     animation: syncing linear 2s infinite alternate

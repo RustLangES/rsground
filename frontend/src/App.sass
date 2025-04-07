@@ -1,3 +1,5 @@
+@use "./styles/mixins" as *
+
 *
   margin: 0
   padding: 0
@@ -17,21 +19,11 @@ body
   display: grid
   grid-template-columns: auto 1fr
 
-.solid-dockview-panel-content
-  display: contents
-
-.default-tab .tab-action
-  border: 0
-  background: transparent
-  cursor: pointer
-
-  &:disabled
-    color: initial
-    cursor: not-allowed
-    opacity: 0.6
-
 html
-  --colors-background: #2E2E2E
+  //// COLORS ////
+  +themed_var(colors-background, var(--colors-background-light), var(--colors-background-dark))
+  --colors-background-light: #FAFAFA
+  --colors-background-dark: #2E2E2E
 
   --colors-primary: var(--colors-primary-400)
   --colors-primary-950: #450F05
@@ -111,3 +103,12 @@ html
   --colors-success-100: #DAFEE9
   --colors-success-050: #EFFEF5
 
+  //// SPACING ////
+  --radius-sm: 4px
+  --radius-md: 8px
+  --radius-lg: 12px
+  --radius-full: 9999px
+
+  //// GLOBAL COMPONENTS ////
+  +themed_var(surface-background, var(--colors-primary-050), var(--colors-gray-900))
+  +themed_var(surface-foreground, #000, #FFF)

@@ -1,37 +1,38 @@
+@use "../../styles/mixins" as *
+
 .anchor
   position: absolute
 
 .content
+  +neobrutalism
+
+  +themed_var(context-background, var(--colors-primary-100), var(--colors-gray-800))
+
   z-index: 1;
-  background: #454545
-  border-radius: 8px
-  filter: drop-shadow(2px 2px 0px #000)
-  border: 2px solid #000
+  background: var(--context-background)
   overflow: hidden
   transform-origin: top left
 
   &[data-open]
-    animation: open-context-menu 100ms linear;
-
-    @keyframes open-context-menu
+    +animate(open-context-menu, 100ms, linear)
       0%
         scale: 0
       100%
         scale: 1
 
   &[data-closed]
-    animation: closed-context-menu 100ms linear;
-
-    @keyframes closed-context-menu
+    +animate(closed-context-menu, 100ms, linear)
       0%
         scale: 1
       100%
         scale: 0
 
-@mixin content-item($background, $color: $background, $pressed_color: black)
+%item_base
   list-style-type: none
   padding: 0.25rem 1rem
   cursor: pointer
+
+=content-item($background, $color: $background, $pressed_color: black)
   color: $color
 
   &:not(.disabled):hover
@@ -39,11 +40,28 @@
     color: $pressed_color
 
 .item
-  @include content-item(#D9D6FE, white)
+  @extend %item_base
+  +content-item(var(--colors-secondary-300), black)
+
+  +dark
+    +content-item(var(--colors-secondary-200), white)
+
 .item_error
-  @include content-item(#FBA6AC)
+  @extend %item_base
+  +content-item(var(--colors-error-300), var(--colors-error-600))
+
+  +dark
+    +content-item(var(--colors-error-300))
+
 .item_warning
-  @include content-item(#F7D591)
+  @extend %item_base
+  +content-item(var(--colors-warn-200), var(--colors-warn-600))
+
+  +dark
+    +content-item(var(--colors-warn-200))
 
 .disabled
-  color: #999
+  color: var(--colors-gray-600)
+
+  +dark
+    color: var(--colors-gray-400)

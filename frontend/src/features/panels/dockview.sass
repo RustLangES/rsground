@@ -1,142 +1,113 @@
+@use "../../styles/mixins" as *
+
 .rsground-dockview
-    //// CORE ////
-    --dv-paneview-active-outline-color: dodgerblue
-    --dv-tabs-and-actions-container-font-size: 13px
-    --dv-tabs-and-actions-container-height: 35px
-    --dv-drag-over-background-color: rgba(83, 89, 93, 0.5)
-    --dv-drag-over-border-color: transparent
-    --dv-tabs-container-scrollbar-color: #888
-    --dv-icon-hover-background-color: rgba(90, 93, 94, 0.31)
-    --dv-floating-box-shadow: 8px 8px 8px 0px rgba(83, 89, 93, 0.5)
-    --dv-overlay-z-index: 999
+  //// COLORS ////
+  --dv-color-accent: var(--colors-primary-400)
+  --dv-color-primary-text: black
 
-    //// SPACED ////
-    --dv-tab-font-size: inherit
-    --dv-tab-margin: 0
-    --dv-sash-color: transparent
-    --dv-active-sash-color: transparent
-    --dv-active-sash-transition-duration: 0.1s
-    --dv-active-sash-transition-delay: 0.5s
+  //// CORE ////
+  --dv-group-view-background-color: transparent
 
-    --dv-border-radius: 12px
-    --dv-tab-margin: 0.5rem 0.25rem
-    --dv-tabs-and-actions-container-height: 44px
+  --dv-paneview-active-outline-color: dodgerblue
+  --dv-icon-hover-background-color: rgba(90, 93, 94, 0.31)
+  --dv-overlay-z-index: 999
 
-    .dv-resize-container:has(> .dv-groupview)
-        border-radius: 8px
+  --dv-sash-color: transparent
+  --dv-active-sash-color: var(--dv-color-accent)
+  --dv-active-sash-transition-duration: 0.1s
+  --dv-active-sash-transition-delay: 0.5s
+  --dv-border-radius: var(--radius-md)
 
-    .dv-sash
-        border-radius: 4px
+  //// TABS ////
+  --dv-tab-font-size: inherit
+  --dv-tab-margin: 0.5rem 0.25rem
+  --dv-tabs-container-scrollbar-color: #888
+  --dv-tabs-and-actions-container-height: 44px
+  --dv-tabs-and-actions-container-font-size: 13px
+  --dv-tabs-and-actions-container-background-color: transparent
+  --dv-tabs-and-actions-container-inactive-background-color: var(--colors-primary-400)
 
-    .dv-drop-target-anchor
-        border-radius: calc(var(--dv-border-radius) / 4)
-        &.dv-drop-target-content
-            border-radius: var(--dv-border-radius)
+  --dv-activegroup-visiblepanel-tab-background-color: var(--colors-primary-300)
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--dv-tabs-and-actions-container-inactive-background-color)
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--dv-tabs-and-actions-container-inactive-background-color)
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--dv-tabs-and-actions-container-inactive-background-color)
+  --dv-tab-divider-color: transparent
 
-    .dv-resize-container
-        border-radius: var(--dv-border-radius) !important
-        border: none
+  --dv-activegroup-visiblepanel-tab-color: var(--dv-color-primary-text)
+  --dv-activegroup-hiddenpanel-tab-color: var(--dv-color-primary-text)
+  --dv-inactivegroup-visiblepanel-tab-color: var(--dv-color-primary-text)
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--dv-color-primary-text)
 
-    .dv-tabs-overflow-container,
-    .dv-tabs-overflow-dropdown-default
-        border-radius: 8px
-        height: unset !important
+  //// OVERLAY ////
+  --dv-drag-over-border-color: var(--colors-primary-600)
+  +dark
+    --dv-drag-over-border-color: var(--colors-primary-400)
+  --dv-drag-over-border: 2px solid var(--dv-drag-over-border-color)
+  --dv-drag-over-background-color: ''
 
-    .dv-groupview
-      overflow: visible !important
+  //
+  --dv-separator-border: transparent
+  --dv-paneview-header-border-color: rgb(51, 51, 51)
 
-      .dv-tabs-and-actions-container
-        padding: 0px calc(var(--dv-border-radius) / 2)
-        background-color: transparent
-        color: black
+  --dv-floating-box-shadow: 8px 8px 8px 0px rgba(0, 0, 0, 0.5)
 
-        .dv-tab
-          border-radius: 8px
-          background-color: #FF8637
-          font-weight: 600
+  padding: 10px
 
-          .dv-default-tab-action
-            color: black
+  .dv-sash
+    +radius(sm)
 
-          .dv-svg
-            height: 8px
-            width: 8px
-          border: 2px solid #000
-          box-shadow: 2px 2px 0 0 #000
+  .dv-drop-target-anchor
+      border-radius: calc(var(--dv-border-radius) / 4)
+      &.dv-drop-target-content
+          border-radius: var(--dv-border-radius)
 
-          transition: ease-in-out 0.2s
-          box-shadow: 2px 2px 0 0 #000
+  .dv-resize-container
+    border-radius: var(--dv-border-radius) !important
+    border: none
 
-        .dv-active-tab
-          border-radius: 8px
-          background-color: #FF8637
-          font-weight: 600
+    &:has(> .dv-groupview)
+      +radius
 
-          .dv-default-tab-action
-            color: black
+  .dv-tabs-overflow-container,
+  .dv-tabs-overflow-dropdown-default
+    +radius
+    height: unset !important
 
-          .dv-svg
-            height: 8px
-            width: 8px
-          border: 2px solid #000
+  .dv-groupview
+    overflow: visible !important
+
+    .dv-tabs-and-actions-container
+      padding: 0px calc(var(--dv-border-radius) - 0.25rem)
+      color: black
+
+      .dv-tab
+        +neobrutalism
+
+        font-weight: 600
+        transition: box-shadow ease-in-out 0.2s
+
+        &.dv-active-tab
           box-shadow: 0px 0px 0 0 #000
-        
-      .dv-content-container
-        overflow: hidden
-        background-color: #3D3D3D
-        border-radius: 12px
-        border: 2px solid #000
-        box-shadow: 2px 2px 0 0 #000
 
+        .dv-default-tab-action
+          color: black
 
-    //// COLORS ////
-    --dv-color-abyss-dark: rgb(11, 6, 17)
-    --dv-color-abyss: #16121f
-    --dv-color-abyss-light: #201d2b
-    --dv-color-abyss-lighter: #2a2837
-    --dv-color-abyss-accent: #FF8637
-    --dv-color-abyss-primary-text: black
-    --dv-color-abyss-secondary-text: rgb(0, 0, 0)
+        .dv-svg
+          height: 8px
+          width: 8px
 
-    //
-    --dv-drag-over-border: 2px solid var(--dv-color-abyss-accent)
-    --dv-drag-over-background-color: ''
-    //
+    .dv-content-container
+      +neobrutalism(var(--dv-border-radius))
 
-    //
-    --dv-group-view-background-color: transparent
-    //
-    --dv-tabs-and-actions-container-background-color: #FFB270
-    --dv-tabs-and-actions-container-inactive-background-color: #FF8637
-    //
-    --dv-activegroup-visiblepanel-tab-background-color: var(--dv-tabs-and-actions-container-background-color)
-    --dv-activegroup-hiddenpanel-tab-background-color: var(--dv-tabs-and-actions-container-inactive-background-color)
-    --dv-inactivegroup-visiblepanel-tab-background-color: var(--dv-tabs-and-actions-container-inactive-background-color)
-    --dv-inactivegroup-hiddenpanel-tab-background-color: var(--dv-tabs-and-actions-container-inactive-background-color)
-    --dv-tab-divider-color: transparent
-    //
-    --dv-activegroup-visiblepanel-tab-color: var(--dv-color-abyss-primary-text)
-    --dv-activegroup-hiddenpanel-tab-color: var(--dv-color-abyss-secondary-text)
-    --dv-inactivegroup-visiblepanel-tab-color: var(--dv-color-abyss-primary-text)
-    --dv-inactivegroup-hiddenpanel-tab-color: var(--dv-color-abyss-secondary-text)
-    //
-    --dv-separator-border: transparent
-    --dv-paneview-header-border-color: rgb(51, 51, 51)
+      overflow: hidden
+      background-color: var(--surface-background)
 
-    /////
-    --dv-active-sash-color: var(--dv-color-abyss-accent)
-    //
-    --dv-floating-box-shadow: 8px 8px 8px 0px rgba(0, 0, 0, 0.5)
+  .dv-resize-container
+    .dv-groupview
+      border: 2px solid transparent
 
-    padding: 10px
-    background-color: transparent
+  .dv-split-view-container
+    overflow: visible
 
-    .dv-resize-container
-        .dv-groupview
-            border: 2px solid transparent
-
-    .dv-split-view-container
+    .dv-view-container .dv-view
       overflow: visible
-
-      .dv-view-container .dv-view
-        overflow: visible

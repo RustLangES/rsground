@@ -39,9 +39,7 @@
   --dv-inactivegroup-hiddenpanel-tab-color: var(--dv-color-primary-text)
 
   //// OVERLAY ////
-  --dv-drag-over-border-color: var(--colors-primary-600)
-  +dark
-    --dv-drag-over-border-color: var(--colors-primary-400)
+  +themed_var(dv-drag-over-border-color, var(--colors-primary-600), var(--colors-primary-400))
   --dv-drag-over-border: 2px solid var(--dv-drag-over-border-color)
   --dv-drag-over-background-color: ''
 

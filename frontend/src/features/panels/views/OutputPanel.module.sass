@@ -1,0 +1,29 @@
+@use "../../../styles/mixins" as *
+
+.container
+  height: 100%
+  display: flex
+  flex-direction: column
+
+.actions
+  display: flex
+  gap: 1rem
+  padding: 0.5rem 1rem
+  color: white
+
+  > li
+    list-style-type: none
+
+.action_play
+  +themed(color, var(--colors-success-500), var(--colors-success-400))
+
+.action_kill
+  +themed(color, var(--colors-error-500), var(--colors-error-400))
+
+.output
+  overflow: auto
+  height: 100%
+  padding: 0.25rem 0.5rem
+  background: var(--colors-gray-900)
+  +dark
+    padding-top: 0

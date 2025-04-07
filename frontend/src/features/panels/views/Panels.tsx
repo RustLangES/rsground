@@ -5,12 +5,12 @@ import {
   DockviewTheme,
   IContentRenderer,
 } from "dockview-core";
-import {} from "solid-codemirror";
 
-import styles from "./Panels.module.sass";
-import "./dockview.sass";
 import { CodePanel } from "./CodePanel";
 import { OutputPanel } from "./OutputPanel";
+
+import "./dockview.sass";
+import styles from "./Panels.module.sass";
 
 export function Panels() {
   const element = <div class={styles.container} /> as HTMLElement;

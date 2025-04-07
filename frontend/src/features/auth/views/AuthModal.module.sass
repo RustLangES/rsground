@@ -1,4 +1,8 @@
+@use "../../../styles/mixins" as *
+
 .base
+  +neobrutalism(lg)
+
   z-index: 3
 
   transform: translate(0, 8px)
@@ -8,10 +12,8 @@
   overflow: auto
 
   padding: .5rem .5rem
-  background: #3D3D3D
-  border: 2px solid #000
-  border-radius: 12px
-  box-shadow: 2px 2px 0 0 #000
+  background: var(--surface-background)
+  color: var(--surface-foreground)
 
   display: flex
   gap: .5rem
@@ -23,14 +25,13 @@
   flex-direction: column
 
 .user_avatar
+  +neobrutalism(full)
+
   width: 3em
   height: 3em
 
-  background: #FF8637
+  background: var(--colors-primary)
   color: black
-  border: 2px solid #000
-  border-radius: 9999px
-  box-shadow: 2px 2px 0 0 #000
 
   display: flex
   justify-content: center
@@ -44,8 +45,6 @@
     object-fit: cover
 
 .username_container
-  color: white
-
   display: flex
   flex-direction: column
   align-items: flex-start
@@ -54,28 +53,24 @@
     font-size: .6rem
 
 .logout
+  +neobrutalism
+
   height: min-content
   padding: 0.25rem 0.5rem
 
   font-weight: bold
-  background: #F04257
-  color: #000
-  border: 2px solid #000
-  border-radius: 8px
-  box-shadow: 2px 2px 0 0 #000
+  background: var(--colors-error-500)
+  color: black
 
 .login_github
+  +neobrutalism
+  +center
+
   height: min-content
   padding: 0.25rem 0.5rem
 
   font-weight: bold
-  background: #FF8637
-  color: #000
-  border: 2px solid #000
-  border-radius: 8px
-  box-shadow: 2px 2px 0 0 #000
+  background: var(--colors-primary)
+  color: black
 
-  display: flex
-  justify-content: center
-  align-items: center
   gap: 0.5rem

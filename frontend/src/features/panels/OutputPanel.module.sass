@@ -1,3 +1,5 @@
+@use "../../styles/mixins" as *
+
 .container
   height: 100%
   display: flex
@@ -5,24 +7,26 @@
 
 .actions
   display: flex
-  gap: 0.5rem
-  padding: 0.5rem 0.5rem
+  gap: 1rem
+  padding: 0.5rem 1rem
   color: white
 
   > li
     list-style-type: none
 
 .action_play
-  color: #48E78F
+  +themed(color, var(--colors-success-500), var(--colors-success-400))
 
 .action_kill
-  color: #F87480
+  +themed(color, var(--colors-error-500), var(--colors-error-400))
 
 .output
   overflow: auto
   height: 100%
   padding: 0.25rem 0.5rem
-  padding-top: 0
+  background: var(--colors-gray-900)
+  +dark
+    padding-top: 0
 
 .mods_reset
   color: #FFF

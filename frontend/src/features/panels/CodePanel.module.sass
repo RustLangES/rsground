@@ -1,5 +1,8 @@
+@use "../../styles/mixins" as *
+
 .container
   padding: 0.25rem 0
+  color: var(--surface-foreground)
 
   height: 100%
 
@@ -7,8 +10,8 @@
     height: 100%
   :global(.cm-gutters),
   :global(.cm-activeLineGutter)
-    background: #3D3D3D
-    color: white
+    background: var(--surface-background)
+    color: var(--surface-foreground)
     border-right: none
 
   :global(.cm-gutterElement)
@@ -57,19 +60,19 @@
         filter: contrast(1) brightness(0%)
 
 .keyword
-  color: #FF6E1F
+  +themed(color, var(--colors-primary-700), var(--colors-primary-500))
 
 .fn
-  color: #BCB5FD
+  +themed(color, var(--colors-secondary-500), var(--colors-secondary-300))
 
 .string
-  color: #80F5B4
+  +themed(color, var(--colors-success-600), var(--colors-success-300))
 
 .struct
-  color: #F0B042
+  +themed(color, var(--colors-warn-600), var(--colors-warn-300))
 
 .attribute
-  color: #F87480
+  +themed(color, var(--colors-error-500), var(--colors-error-400))
 
 .lifetime
-  color: #F7D591
+  +themed(color, var(--colors-warn-700), var(--colors-warn-200))

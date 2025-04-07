@@ -8,9 +8,12 @@
     @content
 
 =themed_var($var, $light, $dark)
-  --#{$var}: #{$light}
+  +themed(--#{$var}, $light, $dark)
+
+=themed($entry, $light, $dark)
+  #{$entry}: #{$light}
   +dark
-    --#{$var}: #{$dark}
+    #{$entry}: #{$dark}
 
 =radius($radius: md)
   @if $radius == sm or $radius == md or $radius == lg or $radius == full

@@ -3,7 +3,7 @@
 @use "sass:string"
 
 =dark
-  :where(:not([data-light])) &
+  :where(html:not([data-light])) &
     @media (prefers-color-scheme: dark)
       @content
 

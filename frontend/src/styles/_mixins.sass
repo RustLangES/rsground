@@ -14,13 +14,20 @@
 
 =radius($radius: md)
   @if $radius == sm or $radius == md or $radius == lg or $radius == full
-    border-radius: var(--radius-#{$radius})
+    @extend %radius-#{$radius}
   @else
     border-radius: #{$radius}
+
+@each $r in (sm md lg full)
+  %radius-#{$r}
+    border-radius: var(--radius-#{$r})
 
 =neobrutalism($radius: md)
   +radius($radius)
 
+  @extend %neobrutalism
+
+%neobrutalism
   border: 2px solid #000
   box-shadow: 2px 2px 0 0 #000
 
@@ -30,10 +37,12 @@
   @if list.length($kinds) == 1
     $kinds: list.append($kinds, "")
 
-  $kind: list.nth($kinds, 1)
+  $type: list.nth($kinds, 1)
+  // Axis is compared as oposite
+  // ex: For `x` search for no `y`
   $axis: list.nth($kinds, 2)
 
-  @if $kind == "flex"
+  @if $type == "flex"
     display: flex
 
     @if $axis != "x"
@@ -41,6 +50,19 @@
 
     @if $axis != "y"
       justify-content: center
+
+  @if $type == "position"
+    $transform: ()
+
+    @if $axis != "x"
+      top: 50%
+      $transform: list.append($transform, translateY(-50%), $separator: space)
+
+    @if $axis != "y"
+      left: 50%
+      $transform: list.append($transform, translateX(-50%), $separator: space)
+
+    transform: #{$transform}
 
 =animate($name, $args...)
   @keyframes #{$name}

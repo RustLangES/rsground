@@ -1,0 +1,53 @@
+@use "../../../styles/mixins" as *
+@use "./common" as *
+
+.nav_item
+  +neobrutalism(full)
+  +center(flex)
+
+  width: 36px
+  height: 34px
+  padding: 0.25rem 0.25rem
+  color: black
+  background: var(--colors-primary)
+  overflow: hidden
+
+  transition: left 200ms ease-out
+  position: absolute
+  top: $sidebar_buttons_gap
+
+  &_full
+    padding: 0
+
+  .nav_item svg
+    transition: transform 200ms ease-out
+
+  @for $i from 0 to $sidebar_buttons
+    &:nth-child(#{$i + 1})
+      transition: left 200ms ease-out, top 200ms ease-out
+      left: calc(#{1.25 * $sidebar_buttons_gap + $i * $sidebar_buttons_gap} + #{$i * $sidebar_buttons_width})
+
+  [data-closed] &
+    left: 0rem
+
+    &:nth-child(1)
+      top: -0.25rem
+
+    @for $i from 2 to $sidebar_buttons
+      &:nth-child(#{$i})
+        top: calc(#{$i * $sidebar_buttons_width} + #{($i - 1) * $sidebar_buttons_gap} + 0.15rem)
+
+    &:nth-last-child(1) 
+      top: calc($sidebar_buttons_width + 0.15rem)
+
+      svg
+        transform: rotateZ(180deg)
+
+.tooltip
+  +neobrutalism
+
+  z-index: 2
+  padding: 0.25rem 0.5rem
+  background: var(--surface2-background)
+  color: var(--surface2-foreground)
+

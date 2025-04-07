@@ -1,0 +1,45 @@
+@use "../../../styles/mixins" as *
+@use "./common" as *
+
+.container
+  width: 250px
+  height: 100%
+  max-height: 100vh
+  padding: 0.5rem
+  display: flex
+  flex-direction: column
+
+  transition: width 200ms ease-out
+
+  .body
+    transition: transform 200ms ease-out
+
+  &[data-closed] 
+    width: calc($sidebar_buttons_width + $sidebar_buttons_gap)
+
+    // Update panels width
+    + div
+      width: calc(100vw - $sidebar_buttons_width - $sidebar_buttons_gap)
+
+    .body
+      transform: translateX(calc(-100% - 1rem))
+
+.nav
+  height: calc(36px + 1rem)
+  position: relative
+  z-index: 1
+
+.nav_items
+  list-style-type: none
+  padding: 0.5rem 0
+  display: flex
+  gap: 0.5rem
+
+.body
+  +neobrutalism(lg)
+
+  display: grid
+  grid-template-rows: 1fr auto auto
+  width: calc(250px - 1rem)
+  height: 100%
+  background: var(--surface-background)

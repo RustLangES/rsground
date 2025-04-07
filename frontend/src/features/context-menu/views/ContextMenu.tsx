@@ -1,22 +1,16 @@
 import Popover, { DynamicProps } from "@corvu/popover";
-import {
-  batch,
-  createEffect,
-  For,
-  ParentProps,
-  splitProps,
-  ValidComponent,
-} from "solid-js";
+import { For, ParentProps, splitProps, ValidComponent } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
-import styles from "./ContextMenu.module.sass";
 import {
   addContextMenu,
   closeAllContextMenus,
   contextMenus,
   openContextMenu,
   setContextMenu,
-} from "./store";
+} from "../stores";
+
+import styles from "./ContextMenu.module.sass";
 
 export interface ContextMenuProps {
   options: Record<
@@ -84,7 +78,6 @@ export function ContextMenu(
                   [styles.item]: !["error", "warning"].includes(item.level),
                   [styles.item_error]: item.level == "error",
                   [styles.item_warning]: item.level == "warning",
-
                 }}
                 onClick={item.onClick}
               >

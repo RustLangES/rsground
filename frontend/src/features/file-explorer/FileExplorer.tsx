@@ -6,9 +6,11 @@ import {
 } from "solid-icons/fa";
 import { Index } from "solid-js";
 
-import styles from "./FileExplorer.module.sass";
+import { ContextMenu } from "@features/context-menu/views";
+
 import { File, fileExplorer, FileNode, FileNodeKind, Folder } from "./store";
-import { ContextMenu } from "../context-menu/ContextMenu";
+
+import styles from "./FileExplorer.module.sass";
 
 function RenderFolder({ data }: { data: Folder }) {
   return (

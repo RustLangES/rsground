@@ -7,7 +7,16 @@
 
 html
   background: var(--colors-background)
-  color: white
+
+  --colors-background: var(--colors-background-light)
+
+  @media (prefers-color-scheme: dark)
+    &:where(:not([data-light]))
+      --colors-background: var(--colors-background-dark)
+
+  [data-dark] &,
+  &[data-dark]
+    --colors-background: var(--colors-background-dark)
 
 #root
   display: contents
@@ -21,7 +30,6 @@ body
 
 html
   //// COLORS ////
-  +themed_var(colors-background, var(--colors-background-light), var(--colors-background-dark))
   --colors-background-light: #FAFAFA
   --colors-background-dark: #2E2E2E
 
@@ -109,6 +117,7 @@ html
   --radius-lg: 12px
   --radius-full: 9999px
 
+body
   //// GLOBAL COMPONENTS ////
   +themed_var(surface-background, var(--colors-primary-050), var(--colors-gray-900))
   +themed_var(surface-foreground, #000, #FFF)

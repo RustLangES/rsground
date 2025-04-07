@@ -15,7 +15,8 @@
   +themed(--#{$var}, $light, $dark)
 
 =themed($entry, $light, $dark)
-  #{$entry}: #{$light}
+  &
+    #{$entry}: #{$light}
   +dark
     #{$entry}: #{$dark}
 
@@ -72,8 +73,8 @@
     transform: #{$transform}
 
 =animate($name, $args...)
-  @keyframes #{$name}
-    @content
-
   animation: #{list.append($args, "", $separator: space)}
   animation-name: $name
+
+  @keyframes #{$name}
+    @content

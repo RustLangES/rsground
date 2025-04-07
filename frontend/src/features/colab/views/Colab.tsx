@@ -2,11 +2,11 @@ import Dialog from "@corvu/dialog";
 import { FaBrandsGithub, FaSolidLock } from "solid-icons/fa";
 import { For } from "solid-js";
 
-import { TextField } from "../../components/TextField";
-import { Switchbox } from "../../components/Switchbox";
-import { SelectField } from "../../components/SelectField";
+import { SelectField } from "@components/SelectField";
+import { Switchbox } from "@components/Switchbox";
+import { TextField } from "@components/TextField";
 
-import { isColabOpen, setIsColabOpen } from "./store";
+import { isColabOpen, setIsColabOpen } from "../stores";
 
 import styles from "./Colab.module.sass";
 

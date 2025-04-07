@@ -4,7 +4,8 @@ import { FaSolidShareNodes } from "solid-icons/fa";
 
 import { setIsAuthOpen } from "@features/auth/stores";
 import { AuthModal, RawUserAvatar } from "@features/auth/views";
-import { Colab, setIsColabOpen } from "@features/colab";
+import { setIsColabOpen } from "@features/colab/stores";
+import { Colab } from "@features/colab/views";
 import { FileExplorer } from "@features/file-explorer";
 
 import { isSidebarOpen, setIsSidebarOpen } from "./store";

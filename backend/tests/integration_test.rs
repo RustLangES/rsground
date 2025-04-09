@@ -1,7 +1,7 @@
 use actix_rt::test;
 use awc::Client;
-use serde_json::{json, Value};
 use futures_util::{sink::SinkExt, stream::StreamExt};
+use serde_json::{json, Value};
 
 const API_URL: &str = "http://localhost:8080";
 const WS_URL: &str = "ws://localhost:8080/ws";
@@ -85,7 +85,9 @@ async fn test_flow_two_users() {
         "password": "123"
     });
     owner_ws
-        .send(awc::ws::Message::Text(create_project_msg.to_string().into()))
+        .send(awc::ws::Message::Text(
+            create_project_msg.to_string().into(),
+        ))
         .await
         .unwrap();
 
@@ -141,15 +143,17 @@ async fn test_flow_two_users() {
     if let Some(Ok(awc::ws::Frame::Text(txt))) = owner_ws.next().await {
         let resp: Value = serde_json::from_slice(&txt).unwrap();
         assert_eq!(resp.get("action").unwrap(), "update");
-        assert_eq!(resp.get("project_id").unwrap(), "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded");
-        assert_eq!(resp.get("file").unwrap(), "");
-        let expected_content = format!(
-            "Usuario {} ahora tiene permisos de editor",
-            guest_user_id
+        assert_eq!(
+            resp.get("project_id").unwrap(),
+            "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded"
         );
+        assert_eq!(resp.get("file").unwrap(), "");
+        let expected_content = format!("Usuario {} ahora tiene permisos de editor", guest_user_id);
         // assert_eq!(resp.get("content").unwrap(), expected_content);
-        assert_eq!(resp.get("content").unwrap().as_str().unwrap(), expected_content);
-
+        assert_eq!(
+            resp.get("content").unwrap().as_str().unwrap(),
+            expected_content
+        );
     } else {
         panic!("No se recibió respuesta a grant_editor");
     }
@@ -314,7 +318,10 @@ async fn test_flow_two_users() {
         let resp: Value = serde_json::from_slice(&txt).unwrap();
         // Se espera una respuesta de sync_actions con dos acciones: inserción y eliminación.
         assert_eq!(resp.get("action").unwrap(), "sync_actions");
-        assert_eq!(resp.get("project_id").unwrap(), "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded");
+        assert_eq!(
+            resp.get("project_id").unwrap(),
+            "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded"
+        );
         assert_eq!(resp.get("file").unwrap(), "documento.txt");
         let actions = resp.get("actions").unwrap().as_array().unwrap();
         assert_eq!(actions.len(), 2);

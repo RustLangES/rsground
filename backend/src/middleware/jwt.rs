@@ -1,11 +1,12 @@
+use crate::auth::handlers::Claims;
 use actix_web::{
+    body::EitherBody,
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
-    Error, HttpResponse, body::EitherBody,
+    Error, HttpResponse,
 };
 use futures::future::{ok, LocalBoxFuture, Ready};
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use std::env;
-use crate::auth::handlers::Claims;
 
 pub struct JwtMiddleware;
 
@@ -39,8 +40,8 @@ where
     type Future = LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
 
     fn poll_ready(
-        &self, 
-        cx: &mut std::task::Context<'_>
+        &self,
+        cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
         self.service.poll_ready(cx)
     }
@@ -52,7 +53,13 @@ where
                     let token = auth_str.trim_start_matches("Bearer ").to_string();
                     let secret_key = env::var("JWT_SECRET").unwrap_or_else(|_| "secret".into());
                     let validation = Validation::default();
-                    if decode::<Claims>(&token, &DecodingKey::from_secret(secret_key.as_ref()), &validation).is_ok() {
+                    if decode::<Claims>(
+                        &token,
+                        &DecodingKey::from_secret(secret_key.as_ref()),
+                        &validation,
+                    )
+                    .is_ok()
+                    {
                         let fut = self.service.call(req);
                         return Box::pin(async move {
                             let res = fut.await?;

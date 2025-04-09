@@ -1,13 +1,21 @@
 use cola::{Deletion, Replica, ReplicaId};
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
-use log::info;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Action {
-    Insertion { pos: usize, text: String, timestamp: u64 },
-    Deletion { range_start: usize, range_end: usize, timestamp: u64 },
+    Insertion {
+        pos: usize,
+        text: String,
+        timestamp: u64,
+    },
+    Deletion {
+        range_start: usize,
+        range_end: usize,
+        timestamp: u64,
+    },
 }
 
 pub struct Insertion {
@@ -28,7 +36,7 @@ pub fn generate_unique_replica_id() -> u64 {
 pub struct Document {
     pub(crate) buffer: String,
     pub(crate) crdt: Replica,
-    pub(crate) replica_id: ReplicaId, 
+    pub(crate) replica_id: ReplicaId,
     pub(crate) history: Vec<Action>,
     pub(crate) current_timestamp: u64,
 }
@@ -38,15 +46,15 @@ impl Document {
         let buffer = text.into();
         let crdt = Replica::new(replica_id, buffer.len());
         info!("Creando nuevo documento con buffer: '{}'", buffer);
-        Document { 
-            buffer, 
+        Document {
+            buffer,
             crdt,
             replica_id,
             history: Vec::new(),
             current_timestamp: 0,
         }
     }
-    
+
     pub fn fork(&self, new_replica_id: ReplicaId) -> Self {
         let new_replica_id = if new_replica_id == self.replica_id {
             generate_unique_replica_id()
@@ -65,29 +73,38 @@ impl Document {
 
     pub fn insert<S: Into<String>>(&mut self, insert_at: usize, text: S) -> Insertion {
         let text = text.into();
-        info!("Insertando texto '{}' en la posición {} del documento", text, insert_at);
+        info!(
+            "Insertando texto '{}' en la posición {} del documento",
+            text, insert_at
+        );
         self.buffer.insert_str(insert_at, &text);
         let insertion = self.crdt.inserted(insert_at, text.len());
         self.current_timestamp += 1;
-        let action = Action::Insertion { 
-            pos: insert_at, 
-            text: text.clone(), 
-            timestamp: self.current_timestamp 
+        let action = Action::Insertion {
+            pos: insert_at,
+            text: text.clone(),
+            timestamp: self.current_timestamp,
         };
         self.history.push(action);
         info!("Buffer actualizado: '{}'", self.buffer);
-        Insertion { text, crdt: insertion }
+        Insertion {
+            text,
+            crdt: insertion,
+        }
     }
 
     pub fn delete(&mut self, range: Range<usize>) -> Deletion {
-        info!("Eliminando rango {}..{} en el documento", range.start, range.end);
+        info!(
+            "Eliminando rango {}..{} en el documento",
+            range.start, range.end
+        );
         self.buffer.replace_range(range.clone(), "");
         let deletion = self.crdt.deleted(range.clone());
         self.current_timestamp += 1;
-        let action = Action::Deletion { 
-            range_start: range.start, 
-            range_end: range.end, 
-            timestamp: self.current_timestamp 
+        let action = Action::Deletion {
+            range_start: range.start,
+            range_end: range.end,
+            timestamp: self.current_timestamp,
         };
         self.history.push(action);
         info!("Buffer después de eliminación: '{}'", self.buffer);

@@ -1,9 +1,9 @@
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use std::collections::HashMap;
 use crate::models::document::Document;
 use crate::models::file_node::FileNode;
 use log::info;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -26,7 +26,13 @@ pub struct Project {
 }
 
 impl Project {
-    pub fn new(owner: String, id: Uuid, name: impl Into<String>, is_public: bool, password: Option<String>) -> Self {
+    pub fn new(
+        owner: String,
+        id: Uuid,
+        name: impl Into<String>,
+        is_public: bool,
+        password: Option<String>,
+    ) -> Self {
         if !is_public && password.is_none() {
             panic!("Los proyectos privados requieren contraseña");
         }

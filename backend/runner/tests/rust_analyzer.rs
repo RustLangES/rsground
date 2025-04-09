@@ -1,4 +1,7 @@
-#![cfg_attr(debug_assertions, allow(dead_code, unused_imports, reason = "this file no test in debug mode"))]
+#![cfg_attr(
+    debug_assertions,
+    allow(dead_code, unused_imports, reason = "this file no test in debug mode")
+)]
 mod common;
 
 use std::io::{Read, Write};

@@ -1,5 +1,5 @@
-use std::sync::{Arc, Mutex};
 use crate::models::*;
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
 pub struct AppState {

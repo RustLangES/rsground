@@ -8,16 +8,20 @@ mod middleware;
 mod models;
 mod state;
 mod ws;
-use auth::{auth_callback, guest_jwt, handlers::{update_name, OAuthData}, health, oauth as oauth_routes};
+use auth::{
+    auth_callback, guest_jwt,
+    handlers::{update_name, OAuthData},
+    health, oauth as oauth_routes,
+};
 use middleware::jwt::JwtMiddleware;
 use models::project::ProjectManager;
 use state::AppState;
 use ws::websocket_handler;
 
+use actix_cors::Cors;
 use dotenv::dotenv;
 use log::info;
 use oauth2::{basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
-use actix_cors::Cors;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -33,7 +37,7 @@ async fn main() -> std::io::Result<()> {
     let token_url = TokenUrl::new("https://github.com/login/oauth/access_token".to_string())
         .expect("URL de token inválida");
 
-    let redirect_uri = RedirectUrl::new("http://localhost:8080/auth/callback".to_string())
+    let redirect_uri = RedirectUrl::new("http://localhost:3000/auth/callback".to_string())
         .expect("URL de redirección inválida");
 
     let client = BasicClient::new(client_id, Some(client_secret), auth_url, Some(token_url))
@@ -49,12 +53,12 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-        .wrap(
-            Cors::default()
-                .allow_any_origin()
-                .allow_any_method()
-                .allow_any_header()
-        )
+            .wrap(
+                Cors::default()
+                    .allow_any_origin()
+                    .allow_any_method()
+                    .allow_any_header(),
+            )
             .app_data(web::Data::new(app_state.clone()))
             .app_data(oauth_data.clone())
             .service(health)

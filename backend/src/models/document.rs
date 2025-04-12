@@ -71,22 +71,24 @@ impl Document {
         }
     }
 
-    pub fn insert<S: Into<String>>(&mut self, insert_at: usize, text: S) -> Insertion {
-        let text = text.into();
-        info!(
-            "Insertando texto '{}' en la posición {} del documento",
-            text, insert_at
-        );
+    pub fn insert(&mut self, insert_at: usize, text: impl Into<String>) -> Insertion {
+        let text: String = text.into();
+
+        log::trace!("Inserting {text:?} at {insert_at}",);
+
         self.buffer.insert_str(insert_at, &text);
+
         let insertion = self.crdt.inserted(insert_at, text.len());
+
         self.current_timestamp += 1;
         let action = Action::Insertion {
             pos: insert_at,
             text: text.clone(),
             timestamp: self.current_timestamp,
         };
+
         self.history.push(action);
-        info!("Buffer actualizado: '{}'", self.buffer);
+
         Insertion {
             text,
             crdt: insertion,

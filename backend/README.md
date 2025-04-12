@@ -19,3 +19,6 @@ para ejecutar los tests
 ```
 cargo test --test integration_test
 ```
+
+## Things to know
+The prefix `Rg` (Ej. `RgWebsocket`) means for `RsGround`, a way to difference business structs

@@ -1,2 +1,3 @@
-rsground_backend.log
-target
+target/
+
+*.log

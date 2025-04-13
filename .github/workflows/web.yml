@@ -1,0 +1,47 @@
+name: Deploy to production
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/deploy.yml'
+      - 'frontend/**'
+
+env:
+  PROJECT_NAME: playground
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - name: Install Deps
+        run: pnpm i -C frontend
+      - name: Build
+        run: pnpm run -C frontend build
+        env:
+          VITE_BACKEND_HOST: ${{ secrets.BACKEND_HOST }}
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        env:
+          # AUTH_GITHUB_ID: ${{ secrets.AUTH_GITHUB_ID }}
+          # AUTH_GITHUB_SECRET: ${{ secrets.AUTH_GITHUB_SECRET }}
+          # AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          # AUTH_TRUST_HOST: ${{ secrets.AUTH_TRUST_HOST }}
+          # ADMINS: ${{ secrets.ADMINS }}
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy ./frontend/dist --project-name "${{ env.PROJECT_NAME }}"
+          # secrets: |
+          #   ADMINS
+          #   AUTH_GITHUB_ID
+          #   AUTH_GITHUB_SECRET
+          #   AUTH_SECRET
+          #   AUTH_TRUST_HOST

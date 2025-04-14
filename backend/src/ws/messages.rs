@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::models::document::Action;
-use crate::models::file_node::FileNode;
 use crate::models::project_access::AccessLevel;
 
 #[derive(Serialize, Deserialize)]
@@ -11,77 +10,69 @@ pub enum ClientMessage {
     CreateProject {
         name: String,
     },
-    JoinProject {
-        project_id: Uuid,
-        password: Option<String>,
-    },
-    Insert {
-        file: String,
-        pos: usize,
-        text: String,
-    },
     Delete {
         file: String,
         range_start: usize,
         range_end: usize,
     },
+    ForkProject {
+        project_id: Uuid,
+    },
+    GetProjectFiles,
+    Insert {
+        file: String,
+        pos: usize,
+        text: String,
+    },
+    JoinProject {
+        project_id: Uuid,
+        password: Option<String>,
+    },
+    PermitAccess {
+        user_id: String,
+        access: AccessLevel,
+    },
     Sync {
         file: String,
         last_timestamp: u64,
-    },
-    GetProjectFiles,
-    GrantEditor {
-        user_id: String,
-    },
-    PermitAccess {
-        username: String,
-        access: AccessLevel,
-    },
-    ForkProject {
-        project_id: Uuid,
     },
 }
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum ServerMessage {
-    UserConnected {
+    Error {
+        message: String,
+    },
+    /// Trigger to someone join the project
+    JoinedProject {
+        access: AccessLevel,
         user_id: String,
     },
     ProjectCreated {
         project_id: Uuid,
     },
-    SyncActions {
-        file: String,
-        actions: Vec<Action>,
-    },
-    Error {
-        message: String,
-    },
     ProjectFiles {
         /// List of all file paths
         files: Vec<String>,
     },
-    JoinedProject {
-        project_id: Uuid,
-    },
-    EditorRequestReceived {
-        project_id: Uuid,
-    },
-    NewEditorRequest {
-        project_id: Uuid,
-        user_id: String,
-    },
-    EditorGranted {
+    ProjectForked {
         project_id: Uuid,
     },
     Update {
-        project_id: Uuid,
         file: String,
         content: String,
     },
-    ProjectForked {
-        project_id: Uuid,
+    UpdateAccess {
+        access: AccessLevel,
+        user_id: String,
+    },
+    UserConnected {
+        user_id: String,
+    },
+    SyncActions {
+        file: String,
+        actions: Vec<Action>,
     },
 }
 
@@ -95,9 +86,6 @@ pub enum ServerMessageError {
 
     #[error("Invalid password for private project")]
     InvalidPassword,
-
-    #[error("User doesn't ask for editor-mode")]
-    NobodyAskYou,
 
     #[error("You don't have read permission")]
     NotAccessible,

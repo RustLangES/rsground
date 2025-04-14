@@ -96,10 +96,7 @@ impl Document {
     }
 
     pub fn delete(&mut self, range: Range<usize>) -> Deletion {
-        info!(
-            "Eliminando rango {}..{} en el documento",
-            range.start, range.end
-        );
+        log::info!("Removing {range} in a file",);
         self.buffer.replace_range(range.clone(), "");
         let deletion = self.crdt.deleted(range.clone());
         self.current_timestamp += 1;

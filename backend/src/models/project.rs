@@ -1,11 +1,12 @@
-use crate::auth::jwt::RgUserData;
-use crate::models::document::Document;
-use crate::models::file_node::FileNode;
-use log::info;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+
+use serde::Serialize;
 use uuid::Uuid;
 
-use super::document::generate_unique_replica_id;
+use crate::auth::jwt::RgUserData;
+use crate::ws::ws_ext::SessionExt;
+
+use super::document::{generate_unique_replica_id, Document};
 use super::project_access::AccessLevel;
 
 #[derive(Clone)]
@@ -15,9 +16,11 @@ pub struct Project {
     pub owner: String,
     pub documents: HashMap<String, Document>,
     pub allowed_users: HashMap<String, AccessLevel>,
-    pub pending_requests: HashSet<String>,
+    pub pending_requests: HashMap<String, actix_ws::Session>,
     pub is_public: bool,
     pub password: Option<String>,
+    // FIXME: Remove closed sessions
+    pub sessions: Vec<actix_ws::Session>,
 }
 
 impl Project {
@@ -28,22 +31,33 @@ impl Project {
             owner,
             documents: HashMap::new(),
             allowed_users: HashMap::new(),
-            pending_requests: HashSet::new(),
+            pending_requests: HashMap::new(),
             is_public: true,
             password: None,
+            sessions: Vec::new(),
         }
     }
 
-    pub fn permit_access(&mut self, username: String, access: AccessLevel) {
-        self.allowed_users.insert(username, access);
+    pub async fn broadcast_json<T: Serialize>(&mut self, value: &T) {
+        for session in self.sessions.iter_mut() {
+            _ = session.text_json(value).await;
+        }
+    }
+
+    pub fn permit_access(&mut self, user_id: String, access: AccessLevel) {
+        self.allowed_users.insert(user_id, access);
     }
 
     pub fn get_file_mut(&mut self, file_name: &str) -> Option<&mut Document> {
         self.documents.get_mut(file_name)
     }
 
-    pub fn add_file(&mut self, path: impl Into<String>, document: Document) {
-        self.documents.insert(path.into(), document);
+    pub fn add_file(&mut self, path: impl Into<String>, document: Document) -> &mut Document {
+        let path: String = path.into();
+        self.documents.insert(path.clone(), document);
+
+        // SAFETY: just inserted above
+        unsafe { self.documents.get_mut(&path).unwrap_unchecked() }
     }
 
     /// Get all file paths
@@ -74,11 +88,11 @@ impl Project {
             name,
             owner,
             documents,
-            files: self.files.clone(),
             allowed_users: HashMap::new(),
-            pending_requests: HashSet::new(),
+            pending_requests: HashMap::new(),
             is_public: self.is_public,
             password: None,
+            sessions: Vec::new(),
         }
     }
 }
@@ -90,28 +104,28 @@ pub struct ProjectManager {
 
 impl ProjectManager {
     pub fn new() -> Self {
-        info!("Inicializando ProjectManager");
         ProjectManager {
             projects: HashMap::new(),
         }
     }
 
-    pub fn new_project(&mut self, owner: &RgUserData, name: impl Into<String>) -> &Project {
+    pub fn new_project(&mut self, owner: &RgUserData, name: impl Into<String>) -> &mut Project {
         let project = Project::new(owner.id.clone(), name);
 
         self.add_project(project)
     }
 
-    pub fn add_project(&mut self, project: Project) -> &Project {
+    pub fn add_project(&mut self, project: Project) -> &mut Project {
         let project_id = project.id.clone();
 
         log::info!("New project {}: {}", project.id, project.name);
         self.projects.insert(project_id.clone(), project);
 
         // SAFETY: the project is just inserted above
-        unsafe { self.projects.get(&project_id).unwrap_unchecked() }
+        unsafe { self.projects.get_mut(&project_id).unwrap_unchecked() }
     }
 
+    #[expect(dead_code)]
     pub fn get_project(&self, id: &Uuid) -> Option<&Project> {
         self.projects.get(id)
     }

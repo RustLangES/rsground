@@ -34,8 +34,56 @@ impl RgWebsocket {
             .await;
     }
 
-    fn handle_client_message(
+    async fn handle(&mut self, msg: ws::AggregatedMessage, ctx: &mut ws::Session) {
+        match msg {
+            ws::AggregatedMessage::Text(text) => {
+                log::trace!("New message: {text}");
+
+                let Ok(client_msg) = serde_json::from_str::<ClientMessage>(&text)
+                    .inspect_err(|err| log::error!("Could not parse message: {err}"))
+                else {
+                    let err = ServerMessage::Error {
+                        message: "Invalid message".into(),
+                    };
+                    _ = ctx.text_json(&err).await;
+                    return;
+                };
+
+                let response = match self.handle_client_message(&ctx, client_msg).await {
+                    Ok(ok) => ok,
+                    Err(ServerMessageError::None) => return,
+                    Err(err) => err.into(),
+                };
+
+                log::trace!("Sending response: {response:#?}");
+                _ = ctx.text_json(&response).await;
+            }
+            ws::AggregatedMessage::Close(reason) => {
+                log::info!("Closed connection: {reason:?}");
+                _ = ctx.clone().close(reason).await;
+            }
+            _ => (),
+        }
+    }
+
+    pub fn start(mut self, mut session: ws::Session, mut stream: ws::AggregatedMessageStream) {
+        actix_web::rt::spawn(async move {
+            self.send_welcome(&mut session).await;
+
+            while let Some(msg) = stream.next().await {
+                let Ok(msg) = msg.inspect_err(|e| log::error!("Error in websocket stream: {e:?}"))
+                else {
+                    continue;
+                };
+
+                self.handle(msg, &mut session).await;
+            }
+        });
+    }
+
+    async fn handle_client_message(
         &mut self,
+        ctx: &ws::Session,
         msg: ClientMessage,
     ) -> Result<ServerMessage, ServerMessageError> {
         let mut manager = self.app_state.get_manager();
@@ -43,6 +91,7 @@ impl RgWebsocket {
         match msg {
             ClientMessage::CreateProject { name } => {
                 let project = manager.new_project(&self.user_info, name);
+                project.sessions.push(ctx.clone());
 
                 self.access = ProjectAccess::Editor(project.id.clone());
 
@@ -58,40 +107,31 @@ impl RgWebsocket {
                     .get_project_mut(&project_id)
                     .ok_or_else(|| ServerMessageError::ProjectNotFound(project_id))?;
 
-                if !project.is_public {
-                    project.pending_requests.insert(self.user_info.id.clone());
-                    return Err(ServerMessageError::None);
-                }
-
-                if let Some(ref p_password) = project.password {
-                    if password.is_none_or(|pass| &pass != p_password) {
-                        return Err(ServerMessageError::InvalidPassword);
-                    }
-                }
-
-                self.access = ProjectAccess::ReadOnly(project_id.clone());
-                return Ok(ServerMessage::JoinedProject { project_id });
-            }
-
-            ClientMessage::GrantEditor { user_id } => {
-                let project_id = *self.needs_project()?;
-
-                let project = manager
-                    .get_project_mut(&project_id)
-                    .ok_or_else(|| ServerMessageError::ProjectNotFound(project_id))?;
-
-                if project.owner != self.user_info.id {
-                    return Err(ServerMessageError::NotOwner);
-                }
-
-                if project.pending_requests.remove(&user_id) {
-                    log::info!("Editor mode granted for {user_id} in {project_id}");
-                    project.allowed_users.insert(user_id, AccessLevel::ReadOnly);
-                    Ok(ServerMessage::EditorGranted { project_id })
+                let access = if let Some(access) = project.allowed_users.get(&self.user_info.id) {
+                    access
                 } else {
-                    log::info!("The user {user_id} doesn't ask for editor-mode",);
-                    Err(ServerMessageError::NobodyAskYou)
-                }
+                    if !project.is_public {
+                        project
+                            .pending_requests
+                            .insert(self.user_info.id.clone(), ctx.clone());
+                        return Err(ServerMessageError::None);
+                    }
+
+                    if let Some(ref p_password) = project.password {
+                        if password.is_none_or(|pass| &pass != p_password) {
+                            return Err(ServerMessageError::InvalidPassword);
+                        }
+                    }
+
+                    &AccessLevel::ReadOnly
+                };
+
+                project.sessions.push(ctx.clone());
+                self.access = access.to_project_access(project_id);
+                return Ok(ServerMessage::JoinedProject {
+                    user_id: self.user_info.id.clone(),
+                    access: *access,
+                });
             }
             ClientMessage::Insert { file, pos, text } => {
                 let project_id = *self.access.need_editor()?;
@@ -103,24 +143,19 @@ impl RgWebsocket {
                 if let Some(doc) = project.get_file_mut(&file) {
                     doc.insert(pos, text);
                     Ok(ServerMessage::Update {
-                        project_id,
                         file,
                         content: doc.buffer.clone(),
                     })
                 } else {
                     let new_doc = Document::new(text, 1);
-                    project.add_file(&file, new_doc);
-
-                    let doc = project.get_file(&file).ok_or(ServerMessageError::None)?;
+                    let new_doc = project.add_file(&file, new_doc);
 
                     Ok(ServerMessage::Update {
-                        project_id,
                         file,
-                        content: doc.buffer.clone(),
+                        content: new_doc.buffer.clone(),
                     })
                 }
             }
-
             ClientMessage::Delete {
                 file,
                 range_start,
@@ -135,7 +170,6 @@ impl RgWebsocket {
                 if let Some(doc) = project.get_file_mut(&file) {
                     doc.delete(range_start..range_end);
                     Ok(ServerMessage::Update {
-                        project_id,
                         file,
                         content: doc.buffer.clone(),
                     })
@@ -176,7 +210,7 @@ impl RgWebsocket {
                     files: project.get_files().clone(),
                 })
             }
-            ClientMessage::PermitAccess { username, access } => {
+            ClientMessage::PermitAccess { user_id, access } => {
                 let project_id = *self.needs_project()?;
 
                 let project = manager
@@ -187,10 +221,20 @@ impl RgWebsocket {
                     return Err(ServerMessageError::NotOwner);
                 }
 
-                project.permit_access(username.clone(), access);
-                log::info!("User {username} accepted");
+                log::info!("User {user_id} accepted");
 
-                Ok(ServerMessage::JoinedProject { project_id })
+                if let Some(session) = project.pending_requests.remove(&user_id) {
+                    project.sessions.push(session);
+                }
+
+                project.permit_access(user_id.clone(), access);
+
+                // Update everyone for the new user
+                project
+                    .broadcast_json(&ServerMessage::UpdateAccess { user_id, access })
+                    .await;
+
+                Err(ServerMessageError::None)
             }
             ClientMessage::ForkProject { project_id } => {
                 if self.access.is_reader() {
@@ -212,52 +256,5 @@ impl RgWebsocket {
                 })
             }
         }
-    }
-
-    pub(super) async fn handle(&mut self, msg: ws::AggregatedMessage, ctx: &mut ws::Session) {
-        match msg {
-            ws::AggregatedMessage::Text(text) => {
-                log::trace!("New message: {}", text);
-                let Ok(client_msg) = serde_json::from_str::<ClientMessage>(&text)
-                    .inspect_err(|err| log::error!("Could not parse message: {err}"))
-                else {
-                    let err = ServerMessage::Error {
-                        message: "Invalid message".into(),
-                    };
-                    _ = ctx.text_json(&err).await;
-                    return;
-                };
-
-                let response = match self.handle_client_message(client_msg) {
-                    Ok(ok) => ok,
-                    Err(ServerMessageError::None) => return,
-                    Err(err) => err.into(),
-                };
-
-                log::trace!("Sending response: {response:#?}");
-                _ = ctx.text_json(&response).await;
-            }
-            ws::AggregatedMessage::Close(reason) => {
-                log::info!("Closed connection: {reason:?}");
-                _ = ctx.clone().close(reason).await;
-            }
-            _ => (),
-        }
-    }
-
-    pub fn start(mut self, mut session: ws::Session, mut stream: ws::AggregatedMessageStream) {
-        actix_web::rt::spawn(async move {
-            self.send_welcome(&mut session).await;
-
-            while let Some(msg) = stream.next().await {
-                let Ok(msg) =
-                    msg.inspect_err(|e| log::error!("Error in websocket stream: {:?}", e))
-                else {
-                    continue;
-                };
-
-                self.handle(msg, &mut session).await;
-            }
-        });
     }
 }

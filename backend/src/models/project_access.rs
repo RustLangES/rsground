@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::ws::messages::ServerMessageError;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum AccessLevel {
     ReadOnly,
@@ -15,6 +15,15 @@ pub enum ProjectAccess {
     None,
     ReadOnly(Uuid),
     Editor(Uuid),
+}
+
+impl AccessLevel {
+    pub fn to_project_access(&self, project_id: Uuid) -> ProjectAccess {
+        match self {
+            AccessLevel::ReadOnly => ProjectAccess::ReadOnly(project_id),
+            AccessLevel::Editor => ProjectAccess::Editor(project_id),
+        }
+    }
 }
 
 impl ProjectAccess {

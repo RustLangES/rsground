@@ -3,3 +3,4 @@ members = ["backend", "backend/runner"]
 
 [workspace.dependencies]
 thiserror = "1.0.63"
+tokio = { version = "1", features = ["full"] }

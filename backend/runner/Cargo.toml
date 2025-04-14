@@ -12,6 +12,6 @@ test = true
 hakoniwa = "1.1.0"
 lsp-types = "0.97.0"
 os_pipe = "1.2.1"
-thiserror = { workspace = true }
-tokio = { version = "1.44.1", features = ["full"] }
+thiserror.workspace = true
+tokio.workspace = true
 uuid = { version = "1.16.0", features = ["v4"] }

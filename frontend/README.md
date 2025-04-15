@@ -8,6 +8,8 @@ This is the reason you see a `pnpm-lock.yaml`. That being said, any package mana
 $ pnpm install
 ```
 
+![file architecture](https://miro.medium.com/v2/resize:fit:1400/1*x1p3EkyYXSQ8RmOMcCOBQQ.png)
+
 ### Learn more on the [Solid Website](https://solidjs.com) and come chat with us on our [Discord](https://discord.com/invite/solidjs)
 
 ## Available Scripts

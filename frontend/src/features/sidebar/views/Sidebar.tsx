@@ -1,20 +1,19 @@
-import { FaSolidShareNodes } from "solid-icons/fa";
-
-import { MenuIcon } from "@icons/Menu";
-import { ChevronLeft } from "@icons/ChevronLeft";
-import { DocumentIcon } from "@icons/Document";
 import { setIsAuthOpen } from "@features/auth/stores";
 import { AuthModal, RawUserAvatar } from "@features/auth/views";
 import { setIsColabOpen } from "@features/colab/stores";
 import { Colab } from "@features/colab/views";
 import { FileExplorer } from "@features/file-explorer/views";
+import { ContextMenu } from "@features/context-menu/views";
+import { ThemeSelector } from "@features/theme/views";
+import { MenuIcon } from "@icons/Menu";
+import { ChevronLeftIcon } from "@icons/ChevronLeft";
+import { DocumentIcon } from "@icons/Document";
+import { ShareNodesIcon } from "@icons/ShareNodes";
 
 import { isSidebarOpen, setIsSidebarOpen } from "../stores";
 import { SidebarNavItem } from "./SidebarNavItem";
 
 import styles from "./Sidebar.module.sass";
-import { ContextMenu } from "@features/context-menu/views";
-import { ThemeSelector } from "@features/theme/views";
 
 export function Sidebar() {
   return (
@@ -49,7 +48,7 @@ export function Sidebar() {
           </SidebarNavItem>
 
           <SidebarNavItem tooltip="Colab" onClick={() => setIsColabOpen(true)}>
-            <FaSolidShareNodes />
+            <ShareNodesIcon />
             <Colab />
           </SidebarNavItem>
 
@@ -61,7 +60,7 @@ export function Sidebar() {
             tooltip={isSidebarOpen() ? "Close" : "Open"}
             onClick={() => setIsSidebarOpen((prev) => !prev)}
           >
-            <ChevronLeft />
+            <ChevronLeftIcon />
           </SidebarNavItem>
         </ul>
       </nav>

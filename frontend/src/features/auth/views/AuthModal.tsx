@@ -1,9 +1,11 @@
 import Popover from "@corvu/popover";
 import { ParentProps, Show } from "solid-js";
-import { FaBrandsGithub } from "solid-icons/fa";
+
 import { Spinner } from "@components/Spinner";
 import { TextField } from "@components/TextField";
 import { SolidUserIcon } from "@icons/SolidUser";
+import { BrandsGithubIcon } from "@icons/BrandsGithub";
+
 import {
   authInfo,
   isAuthOpen,
@@ -93,7 +95,7 @@ function AuthModalGuest() {
           loginGithub();
         }}
       >
-        <FaBrandsGithub size="1.2rem" />
+        <BrandsGithubIcon width="1.2rem" height="1.2rem" />
         Login with Github
       </button>
     </>

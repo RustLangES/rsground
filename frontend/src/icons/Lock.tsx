@@ -1,0 +1,19 @@
+import { ComponentProps } from "solid-js";
+
+export function LockIcon(props: ComponentProps<"svg">) {
+  return (
+    <svg
+      fill="currentColor"
+      stroke-width="0"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 448 512"
+      style="overflow: visible; color: currentcolor;"
+      height="1em"
+      width="1em"
+      {...props}
+    >
+      <path d="M144 144v48h160v-48c0-44.2-35.8-80-80-80s-80 35.8-80 80zm-64 48v-48C80 64.5 144.5 0 224 0s144 64.5 144 144v48h16c35.3 0 64 28.7 64 64v192c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V256c0-35.3 28.7-64 64-64h16z">
+      </path>
+    </svg>
+  );
+}

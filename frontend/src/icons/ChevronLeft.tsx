@@ -1,6 +1,6 @@
 import { ComponentProps } from "solid-js";
 
-export function ChevronLeft(props: ComponentProps<"svg">) {
+export function ChevronLeftIcon(props: ComponentProps<"svg">) {
   return (
     <svg
       width="20"

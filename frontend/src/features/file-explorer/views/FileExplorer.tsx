@@ -1,12 +1,11 @@
-import {
-  FaBrandsRust,
-  FaSolidFileLines,
-  FaSolidFolderMinus,
-  FaSolidFolderPlus,
-} from "solid-icons/fa";
 import { Index } from "solid-js";
 
 import { ContextMenu } from "@features/context-menu/views";
+import { openFile } from "@features/editor/services";
+import { FolderPlusIcon } from "@icons/FolderPlus";
+import { FolderMinusIcon } from "@icons/FolderMinus";
+import { BrandsRustIcon } from "@icons/BrandsRust";
+import { FileLinesIcon } from "@icons/FileLines";
 
 import { fileExplorer} from "../stores";
 import { FileExplorerNode, FileNode, FileNodeKind, FolderNode } from "../types";
@@ -28,8 +27,8 @@ function RenderFolder({ data }: { data: FolderNode }) {
             "Delete": { level: "error" },
           }}
         >
-          <FaSolidFolderPlus class={styles.closed_folder} />
-          <FaSolidFolderMinus class={styles.opened_folder} />
+          <FolderPlusIcon class={styles.closed_folder} />
+          <FolderMinusIcon class={styles.opened_folder} />
 
           <span>{data.name}</span>
         </ContextMenu>
@@ -56,8 +55,9 @@ function RenderFile({ data }: { data: FileNode }) {
         "Rename": { level: "warning" },
         "Delete": { level: "error" },
       }}
+      onClick={() => openFile(data.fullPath)}
     >
-      {data.filename.endsWith(".rs") ? <FaBrandsRust /> : <FaSolidFileLines />}
+      {data.filename.endsWith(".rs") ? <BrandsRustIcon /> : <FileLinesIcon />}
       <span>{data.filename}</span>
     </ContextMenu>
   );
@@ -86,7 +86,7 @@ export function FileExplorer() {
         "Add Folder": {},
       }}
     >
-      <RenderNodes nodes={fileExplorer[0].nodes} />
+      <RenderNodes nodes={fileExplorer.nodes} />
     </ContextMenu>
   );
 }

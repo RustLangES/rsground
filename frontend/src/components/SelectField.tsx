@@ -1,8 +1,9 @@
 import Popover from "@corvu/popover";
-import { FaSolidChevronDown } from "solid-icons/fa";
+import { createEffect, createSelector, createSignal, For } from "solid-js";
+
+import { ChevronDownIcon } from "@icons/ChevronDown";
 
 import styles from "./SelectField.module.sass";
-import { createEffect, createSelector, createSignal, For } from "solid-js";
 
 type PopoverRootProps = Parameters<typeof Popover>[0];
 export type Placement = NonNullable<PopoverRootProps["placement"]>;
@@ -93,7 +94,7 @@ export function SelectField<T extends string>(props: SelectFieldProps<T>) {
       <Popover.Trigger class={styles.base}>
         <span>{selected() ?? props.defaultText}</span>
         <div>
-          <FaSolidChevronDown width="0.5em" height="0.5em" />
+          <ChevronDownIcon width="0.5em" height="0.5em" />
         </div>
       </Popover.Trigger>
       <Popover.Portal>

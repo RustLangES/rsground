@@ -1,10 +1,11 @@
 import Dialog from "@corvu/dialog";
-import { FaBrandsGithub, FaSolidLock } from "solid-icons/fa";
 import { For } from "solid-js";
 
 import { SelectField } from "@components/SelectField";
 import { Switchbox } from "@components/Switchbox";
 import { TextField } from "@components/TextField";
+import { LockIcon } from "@icons/Lock";
+import { BrandsGithubIcon } from "@icons/BrandsGithub";
 
 import { isColabOpen, setIsColabOpen } from "../stores";
 
@@ -30,7 +31,7 @@ export function Colab() {
               </label>
 
               <TextField
-                beforeIcon={<FaSolidLock />}
+                beforeIcon={<LockIcon />}
                 placeholder="Leave empty for no password"
               />
 
@@ -45,7 +46,7 @@ export function Colab() {
               <h3 class={styles.subtitle}>Members</h3>
 
               <TextField
-                beforeIcon={<FaBrandsGithub />}
+                beforeIcon={<BrandsGithubIcon />}
                 placeholder="Username"
               />
 

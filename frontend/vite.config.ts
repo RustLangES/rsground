@@ -1,9 +1,14 @@
 import { defineConfig } from "vite";
 import solidPlugin from "vite-plugin-solid";
 import tsconfigPaths from "vite-tsconfig-paths";
+import devtools from "solid-devtools/vite";
 
 export default defineConfig({
-  plugins: [solidPlugin(), tsconfigPaths()],
+  plugins: [
+    devtools({ autoname: true }),
+    solidPlugin(),
+    tsconfigPaths(),
+  ],
   optimizeDeps: {
     include: ["@codemirror/state", "@codemirror/view"],
   },

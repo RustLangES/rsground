@@ -1,0 +1,58 @@
+@use "../../../styles/mixins" as *
+
+.container
+  padding: 0.25rem 0
+  color: var(--surface-foreground)
+
+  height: 100%
+
+  :global(.cm-editor)
+    height: 100%
+  :global(.cm-gutters),
+  :global(.cm-activeLineGutter)
+    background: var(--surface-background)
+    color: var(--surface-foreground)
+    border-right: none
+
+  :global(.cm-gutterElement)
+    padding-left: 0.5rem !important
+
+  :global(.cm-activeLineGutter),
+  :global(.cm-activeLine),
+  :global(.cm-selectionBackground)
+    background: #0004 !important
+
+  :global(.cm-matchingBracket),
+  :global(.cm-selectionMatch)
+    background: #F0490645 !important
+
+  :global(.cm-foldGutter)
+    display: none !important
+
+  :global(.cm-cursor)
+    border-color: #FFF
+
+.completion_tooltip
+  +neobrutalism
+  background: var(--surface2-background)
+  overflow: hidden
+
+.completion_option
+  padding: 0.15rem 0.25rem !important
+  display: flex
+  flex-direction: row-reverse
+  justify-content: space-between
+
+  :global(.cm-completionIcon)
+    filter: contrast(1) brightness(1000%)
+
+  &:hover
+    filter: brightness(0.8)
+    background: var(--surface2-background)
+
+  &[aria-selected]
+    background: #D9D6FE !important
+    color: #000 !important
+
+    :global(.cm-completionIcon)
+      filter: contrast(1) brightness(0%)

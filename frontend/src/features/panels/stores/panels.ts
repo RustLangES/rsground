@@ -1,3 +1,4 @@
-import { createStore } from "solid-js/store";
+import { DockviewApi } from "dockview-core";
+import { createSignal } from "solid-js";
 
-export const panelsStore = createStore({}, { name: "panelsStore" });
+export const [dockview, setDockview] = createSignal<DockviewApi>(null, { name: "globalDockview" });

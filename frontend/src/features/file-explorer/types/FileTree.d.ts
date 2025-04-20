@@ -11,9 +11,6 @@ export interface FileNode {
   /** The name of the file with extension. */
   filename: string;
 
-  /** Last synced content */
-  content: string;
-
   /**
    * Whether or not is already synced with backend.
    * It is set once the backend sends successful code.

@@ -82,7 +82,10 @@ export function ContextMenu(
       <Dynamic
         {...restProps}
         component={props.as}
-        onClick={props.useLeftClick == true && openOnMouseEvent}
+        onClick={(ev: MouseEvent) => {
+          restProps.onClick?.(ev);
+          props.useLeftClick == true && openOnMouseEvent(ev);
+        }}
         onContextMenu={props.useRightClick != false && openOnMouseEvent}
       >
         <Popover.Anchor

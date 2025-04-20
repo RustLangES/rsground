@@ -1,0 +1,20 @@
+@use "../../../styles/mixins" as *
+
+.keyword
+  +themed(color, var(--colors-primary-700), var(--colors-primary-500))
+
+.fn
+  +themed(color, var(--colors-secondary-500), var(--colors-secondary-300))
+
+.string
+  +themed(color, var(--colors-success-600), var(--colors-success-300))
+
+.struct
+  +themed(color, var(--colors-warn-600), var(--colors-warn-300))
+
+.attribute
+  +themed(color, var(--colors-error-500), var(--colors-error-400))
+
+.lifetime
+  +themed(color, var(--colors-warn-700), var(--colors-warn-200))
+

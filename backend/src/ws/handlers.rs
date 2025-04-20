@@ -1,5 +1,6 @@
 use actix_error_proc::{proof_route, HttpResult};
 use actix_web::{web, HttpRequest};
+use uuid::Uuid;
 
 use crate::auth::jwt;
 use crate::http_errors::HttpErrors;
@@ -13,7 +14,7 @@ async fn websocket(
     stream: web::Payload,
     data: web::Data<AppState>,
 ) -> HttpResult<HttpErrors> {
-    let (protocols, key_val) = parse_protocol_header(&req)?;
+    let (_, key_val) = parse_protocol_header(&req)?;
     let Some(auth) = key_val.iter().find(|(auth, _)| auth == "auth") else {
         return Err(HttpErrors::NoTokenProvided);
     };
@@ -23,6 +24,7 @@ async fn websocket(
         app_state: data.get_ref().clone().into(),
         user_info,
         access: ProjectAccess::None,
+        session_id: Uuid::new_v4().to_string(),
     };
 
     let (response, session, stream) =

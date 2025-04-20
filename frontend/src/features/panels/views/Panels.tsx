@@ -1,14 +1,16 @@
-import "dockview-core/dist/styles/dockview.css";
-
 import {
   DockviewComponent,
   DockviewTheme,
   IContentRenderer,
 } from "dockview-core";
 
+import { openFile } from "@features/editor/services";
+
+import { setDockview } from "../stores";
 import { CodePanel } from "./CodePanel";
 import { OutputPanel } from "./OutputPanel";
 
+import "dockview-core/dist/styles/dockview.css";
 import "./dockview.sass";
 import styles from "./Panels.module.sass";
 
@@ -28,7 +30,7 @@ export function Panels() {
 
     createComponent(options) {
       const element = (options.name == "code"
-        ? CodePanel()
+        ? CodePanel(options.id)
         : options.name == "output"
         ? OutputPanel()
         : <span>Esto es canallesco</span>) as HTMLElement;
@@ -51,13 +53,11 @@ export function Panels() {
         position: { direction: "below" },
       });
     }
-  })
-
-  dockview.api.addPanel({
-    id: "file:main.rs",
-    component: "code",
-    title: "main.rs",
   });
+
+  setDockview(dockview.api);
+
+  openFile("main.rs");
 
   dockview.api.addPanel({
     id: "output",

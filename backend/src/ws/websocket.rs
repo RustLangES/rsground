@@ -16,6 +16,7 @@ pub struct RgWebsocket {
     pub app_state: Arc<AppState>,
     pub user_info: RgUserData,
     pub access: ProjectAccess,
+    pub session_id: String,
 }
 
 impl RgWebsocket {
@@ -29,9 +30,18 @@ impl RgWebsocket {
     async fn send_welcome(&self, ctx: &mut ws::Session) {
         _ = ctx
             .text_json(&ServerMessage::UserConnected {
-                user_id: self.user_info.id.clone(),
+                user_id: self.session_id.clone(),
             })
             .await;
+
+        if let Some(pj) = self.access.get_project_id() {
+            if let Some(pj) = self.app_state.get_manager().get_project_mut(pj) {
+                pj.broadcast_json(&ServerMessage::UserConnected {
+                    user_id: self.user_info.id.clone(),
+                })
+                .await
+            }
+        }
     }
 
     async fn handle(&mut self, msg: ws::AggregatedMessage, ctx: &mut ws::Session) {

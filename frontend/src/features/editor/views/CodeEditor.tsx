@@ -8,6 +8,8 @@ import { syncFiles } from "../stores";
 
 import styles from "./CodeEditor.module.sass";
 import { OtOperation, OtOperationKind } from "../types";
+import { wsSessionId } from "@features/ws/stores";
+import { EditorView } from "codemirror";
 
 export interface CodeEditorProps {
   /** full-path of the target file to edit */
@@ -24,39 +26,42 @@ export function CodeEditor(props: CodeEditorProps) {
       extensions={[
         ...rustExtensions(styles),
         collab(),
+        EditorView.domEventObservers({
+          "changes": (_, editor) => {
+            console.log(
+              sendableUpdates(editor.state).map((update) => {
+                let acc = [];
+                update.changes.iterChanges(
+                  (fromA, toA, _fromB, _toB, insert) => {
+                    if (fromA == toA) {
+                      acc.push(
+                        {
+                          kind: OtOperationKind.Insert,
+                          owner: wsSessionId() ?? "me",
+                          from: fromA,
+                          content: insert.sliceString(0, insert.length, "\n"),
+                        } satisfies OtOperation,
+                      );
+                    } else {
+                      acc.push(
+                        {
+                          kind: OtOperationKind.Delete,
+                          owner: wsSessionId() ?? "me",
+                          from: fromA,
+                          to: toA,
+                        } satisfies OtOperation,
+                      );
+                    }
+                  },
+                );
+                return acc;
+              }),
+            );
+          },
+        }),
       ]}
       onEditorMount={(editor) => {
         editor.setTabFocusMode(true);
-
-        editor.dom.addEventListener("keydown", () => {
-          console.log(
-            sendableUpdates(editor.state).map((update) => {
-              let acc = [];
-              update.changes.iterChanges((fromA, toA, _fromB, _toB, insert) => {
-                if (fromA == toA) {
-                  acc.push(
-                    {
-                      kind: OtOperationKind.Insert,
-                      owner: "me",
-                      from: fromA,
-                      content: insert.sliceString(0, insert.length, "\n"),
-                    } satisfies OtOperation,
-                  );
-                } else {
-                  acc.push(
-                    {
-                      kind: OtOperationKind.Delete,
-                      owner: "me",
-                      from: fromA,
-                      to: toA,
-                    } satisfies OtOperation,
-                  );
-                }
-              });
-              return acc;
-            }),
-          );
-        });
       }}
     />
   );

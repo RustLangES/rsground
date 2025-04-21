@@ -1,5 +1,6 @@
 import { BACKEND_HOST } from "@services";
 import { AuthInfo } from "../types";
+import { setAuthInfo } from "../stores";
 
 export async function loginGuest(guest_name: string): Promise<AuthInfo> {
   const res = await fetch(
@@ -15,5 +16,9 @@ export async function loginGuest(guest_name: string): Promise<AuthInfo> {
     },
   );
 
-  return await res.json();
+  const authInfo = await res.json();
+
+  setAuthInfo(authInfo);
+
+  return authInfo;
 }

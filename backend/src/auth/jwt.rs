@@ -1,13 +1,14 @@
 use std::sync::LazyLock;
 
 use actix_web::HttpRequest;
-use chrono::{Duration, Utc};
+use chrono::{Duration, TimeDelta, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::expect_var;
 use crate::http_errors::HttpErrors;
 
 pub static JWT_SECRET: LazyLock<String> = LazyLock::new(|| expect_var!("JWT_SECRET"));
+const JWT_EXP: TimeDelta = Duration::hours(12);
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RgUserData {
@@ -19,7 +20,7 @@ pub struct RgUserData {
 
 impl RgUserData {
     pub fn new(id: String, name: String, is_guest: bool) -> Self {
-        let exp = Utc::now() + Duration::hours(12);
+        let exp = Utc::now() + JWT_EXP;
 
         Self {
             id,

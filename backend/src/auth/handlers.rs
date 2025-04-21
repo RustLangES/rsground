@@ -1,5 +1,5 @@
 use actix_error_proc::{proof_route, HttpResult};
-use actix_web::{get, web, HttpResponse, Responder};
+use actix_web::{get, web, HttpRequest, HttpResponse, Responder};
 use oauth2::{AuthorizationCode, CsrfToken, Scope, TokenResponse};
 use serde::Deserialize;
 use uuid::Uuid;
@@ -28,6 +28,13 @@ pub async fn oauth(oauth: web::Data<OAuthData>) -> impl Responder {
     HttpResponse::Found()
         .append_header(("Location", auth_url.to_string()))
         .finish()
+}
+
+#[get("/auth/me")]
+pub async fn me(req: HttpRequest) -> HttpResult<HttpErrors> {
+    let user_info = jwt::get_user_info(&req)?;
+
+    Ok(HttpResponse::Ok().json(user_info))
 }
 
 #[get("/auth/callback")]

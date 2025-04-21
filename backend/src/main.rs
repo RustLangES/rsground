@@ -50,6 +50,7 @@ async fn main() -> std::io::Result<()> {
             .service(auth::handlers::oauth)
             .service(auth::handlers::auth_callback)
             .service(auth::handlers::guest_jwt)
+            .service(auth::handlers::me)
             .service(auth::handlers::update_name)
             .service(ws::handlers::websocket)
     })

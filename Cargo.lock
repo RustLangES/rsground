@@ -454,7 +454,6 @@ dependencies = [
  "actix_error_proc",
  "awc",
  "chrono",
- "cola",
  "dotenv",
  "env_logger",
  "futures",
@@ -626,12 +625,6 @@ dependencies = [
  "wasm-bindgen",
  "windows-link",
 ]
-
-[[package]]
-name = "cola"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ce4b9283c6193d2ab7ee39f6a3f25099a4b860ada4d4d156de7f3ac35f83141"
 
 [[package]]
 name = "colorchoice"

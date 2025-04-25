@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use crate::models::project::ProjectManager;
+use crate::project::ProjectManager;
 
 #[derive(Clone)]
 pub struct AppState {

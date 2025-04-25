@@ -1,7 +1,8 @@
 mod auth;
+mod collab;
 mod health;
 mod http_errors;
-mod models;
+mod project;
 mod state;
 mod utils;
 mod ws;
@@ -12,9 +13,9 @@ use actix_cors::Cors;
 use actix_web::{web, App, HttpServer};
 
 use auth::github;
-use auth::handlers::OAuthData;
 use auth::jwt::JWT_SECRET;
-use models::project::ProjectManager;
+use auth::routes::OAuthData;
+use project::ProjectManager;
 use state::AppState;
 
 #[actix_web::main]
@@ -22,8 +23,8 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
     dotenv::dotenv().ok();
 
-    // Force initialization to verify if env var exists
-    // at bootstrap
+    // Force initialization to verify
+    // if env var exists at bootstrap
     LazyLock::force(&JWT_SECRET);
 
     let oauth_data = web::Data::new(OAuthData {
@@ -47,12 +48,14 @@ async fn main() -> std::io::Result<()> {
             .app_data(app_state.clone())
             .app_data(oauth_data.clone())
             .service(health::health)
-            .service(auth::handlers::oauth)
-            .service(auth::handlers::auth_callback)
-            .service(auth::handlers::guest_jwt)
-            .service(auth::handlers::me)
-            .service(auth::handlers::update_name)
-            .service(ws::handlers::websocket)
+            .service(auth::routes::auth)
+            .service(auth::routes::callback)
+            .service(auth::routes::login_guest)
+            .service(auth::routes::me)
+            .service(auth::routes::update_name)
+            .service(project::routes::create_project)
+            .service(project::routes::fork_project)
+            .service(ws::routes::websocket)
     })
     .bind("127.0.0.1:8080")?
     .run()

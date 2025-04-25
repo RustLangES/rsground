@@ -1,67 +1,41 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::document::Action;
-use crate::models::project_access::AccessLevel;
+use crate::collab::Action;
+use crate::project::AccessLevel;
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum ClientMessage {
-    CreateProject {
-        name: String,
-    },
-    Delete {
-        file: String,
-        range_start: usize,
-        range_end: usize,
-    },
-    ForkProject {
-        project_id: Uuid,
-    },
-    GetProjectFiles,
-    Insert {
-        file: String,
-        pos: usize,
-        text: String,
-    },
-    JoinProject {
-        project_id: Uuid,
-        password: Option<String>,
-    },
     PermitAccess {
         user_id: String,
         access: AccessLevel,
     },
+    FileCreate {
+        file: String,
+    },
+    FileDelete {
+        file: String,
+    },
     Sync {
         file: String,
-        last_timestamp: u64,
+        revision: usize,
+        actions: Vec<Action>,
     },
+    SyncFiles,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum ServerMessage {
     Error {
         message: String,
     },
-    /// Trigger to someone join the project
-    JoinedProject {
-        access: AccessLevel,
-        user_id: String,
-    },
-    ProjectCreated {
-        project_id: Uuid,
-    },
     ProjectFiles {
         /// List of all file paths
         files: Vec<String>,
-    },
-    ProjectForked {
-        project_id: Uuid,
-    },
-    Update {
-        file: String,
-        content: String,
     },
     UpdateAccess {
         access: AccessLevel,
@@ -70,9 +44,15 @@ pub enum ServerMessage {
     UserConnected {
         user_id: String,
     },
-    SyncActions {
+    Sync {
         file: String,
+        revision: usize,
         actions: Vec<Action>,
+    },
+    Welcome {
+        session_id: String,
+        files: Vec<String>,
+        users: HashMap<String, AccessLevel>,
     },
 }
 
@@ -84,14 +64,8 @@ pub enum ServerMessageError {
     #[error("File {0:?} not found")]
     FileNotFound(String),
 
-    #[error("Invalid password for private project")]
-    InvalidPassword,
-
     #[error("You don't have read permission")]
     NotAccessible,
-
-    #[error("You are not in a project")]
-    NotInProject,
 
     #[error("You are not the owner: fork the project")]
     NotOwner,

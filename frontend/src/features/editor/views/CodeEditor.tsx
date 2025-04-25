@@ -1,15 +1,14 @@
 import { CodeMirror } from "@solid-codemirror/codemirror";
-import { collab, sendableUpdates } from "@codemirror/collab";
+import { collab } from "@codemirror/collab";
 
 import { getNodeByPath } from "@features/file-explorer/stores";
+import { wsSessionId } from "@features/ws/stores";
 
-import { rustExtensions } from "../utils";
+import { rustExtensions, syncExtension } from "../utils";
 import { syncFiles } from "../stores";
 
 import styles from "./CodeEditor.module.sass";
-import { OtOperation, OtOperationKind } from "../types";
-import { wsSessionId } from "@features/ws/stores";
-import { EditorView } from "codemirror";
+import { FileNodeKind } from "@features/file-explorer/types";
 
 export interface CodeEditorProps {
   /** full-path of the target file to edit */
@@ -19,46 +18,18 @@ export interface CodeEditorProps {
 export function CodeEditor(props: CodeEditorProps) {
   const [file, setFile] = getNodeByPath(props.file);
 
+  if (file.kind == FileNodeKind.Folder) {
+    throw new Error("Really?? Edit a folder?")
+  }
+
   return (
     <CodeMirror
       class={styles.container}
       value={syncFiles[props.file]}
       extensions={[
         ...rustExtensions(styles),
-        collab(),
-        EditorView.domEventObservers({
-          "changes": (_, editor) => {
-            console.log(
-              sendableUpdates(editor.state).map((update) => {
-                let acc = [];
-                update.changes.iterChanges(
-                  (fromA, toA, _fromB, _toB, insert) => {
-                    if (fromA == toA) {
-                      acc.push(
-                        {
-                          kind: OtOperationKind.Insert,
-                          owner: wsSessionId() ?? "me",
-                          from: fromA,
-                          content: insert.sliceString(0, insert.length, "\n"),
-                        } satisfies OtOperation,
-                      );
-                    } else {
-                      acc.push(
-                        {
-                          kind: OtOperationKind.Delete,
-                          owner: wsSessionId() ?? "me",
-                          from: fromA,
-                          to: toA,
-                        } satisfies OtOperation,
-                      );
-                    }
-                  },
-                );
-                return acc;
-              }),
-            );
-          },
-        }),
+        collab({ clientID: wsSessionId() }),
+        syncExtension(file.data)
       ]}
       onEditorMount={(editor) => {
         editor.setTabFocusMode(true);

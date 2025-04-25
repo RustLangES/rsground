@@ -17,7 +17,8 @@ cargo run --bin backend
 ```
 para ejecutar los tests
 ```
-cargo test --test integration_test
+cargo test --no-fail-fast --test integration_test
+cargo test --no-fail-fast --bin backend --verbose
 ```
 
 ## Things to know

@@ -10,6 +10,7 @@ actix = "0.13"
 actix-cors = "0.7.1"
 actix_error_proc = { version = "1.1.4", features = ["thiserror"] }
 actix-web = "4"
+actix-ws = "0.3.0"
 chrono = "0.4"
 dotenv = "0.15.0"
 env_logger = "0.11.7"
@@ -25,9 +26,9 @@ tokio.workspace = true
 uuid = { version = "1.3", features = ["serde", "v4"] }
 
 # Para los tests de integracion
+[dev-dependencies]
 awc = "3" # Cliente HTTP y WebSocket para Actix
 actix-rt = { version = "2.10.0", features = ["macros"] }
 futures-util = "0.3"
 lazy_static = "1.4"
 once_cell = "1.17"
-actix-ws = "0.3.0"

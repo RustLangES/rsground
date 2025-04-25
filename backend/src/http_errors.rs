@@ -27,6 +27,18 @@ pub enum HttpErrors {
     NoTokenProvided,
 
     // -- Websockets related -- //
+    #[error("Project doesn't exist")]
+    #[http_status(NotFound)]
+    ProjectDoesNotExist,
+
+    #[error("Do not have access to project")]
+    #[http_status(Unauthorized)]
+    NotAccessible,
+
+    #[error("Invalid password for private project")]
+    #[http_status(Unauthorized)]
+    InvalidPassword,
+
     #[error("Error at websocket start: {0}")]
     WebsocketStart(actix_web::Error),
 }

@@ -1,26 +1,92 @@
-use actix_rt::test;
-use awc::Client;
+use core::fmt;
+
+use actix_ws::ProtocolError;
+use awc::http::header::TryIntoHeaderPair;
+use awc::http::StatusCode;
+use awc::ws::Frame;
+use awc::{ws, Client, ClientRequest, ClientResponse, SendClientRequest};
 use futures_util::{sink::SinkExt, stream::StreamExt};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 
 const API_URL: &str = "http://localhost:8080";
 const WS_URL: &str = "ws://localhost:8080/ws";
 
-// Función auxiliar para solicitar token de un invitado (guest o owner)
-async fn obtener_token_for_user(guest_name: &str) -> String {
-    let client = Client::default();
-    let mut response = client
-        .post(format!("{}/login-guest", API_URL))
-        .send_json(&json!({ "guest_name": guest_name }))
-        .await
-        .unwrap();
-    assert_eq!(response.status(), 200);
-    let body: Value = response.json().await.unwrap();
-    body.get("jwt")
-        .expect("Falta la clave 'jwt'")
+fn auth_header(token: impl fmt::Display) -> impl TryIntoHeaderPair {
+    ("Authorization", format!("Bearer {token}"))
+}
+
+fn request_post(pathname: impl fmt::Display) -> ClientRequest {
+    Client::new().post(format!("{API_URL}/{pathname}"))
+}
+
+fn request_ws_as(token: String, project_id: impl fmt::Display) -> ws::WebsocketsRequest {
+    Client::new()
+        .ws(format!("{WS_URL}/{project_id}"))
+        .set_header("Sec-WebSocket-Protocol", format!("auth.{token}"))
+}
+
+async fn expect_send_json(send: SendClientRequest, status_code: StatusCode) -> Value {
+    let mut response = send.await.unwrap();
+
+    assert_eq!(response.status(), status_code);
+
+    response.json().await.unwrap()
+}
+
+fn expect_json_value(value: &Value, key: &str) -> Value {
+    value
+        .get(key)
+        .expect(&format!("{key:?} should exist"))
+        .clone()
+}
+
+fn expect_json_string(value: &Value, key: &str) -> String {
+    value
+        .get(key)
+        .expect(&format!("{key:?} should exist"))
         .as_str()
-        .expect("'jwt' no es una cadena")
+        .expect(&format!("{key:?} should be a string"))
         .to_string()
+}
+
+fn expect_json_object(value: &Value, key: &str) -> Map<String, Value> {
+    value
+        .get(key)
+        .expect(&format!("{key:?} should exist in {value}"))
+        .as_object()
+        .expect(&format!("{key:?} should be an object in {value}"))
+        .clone()
+}
+
+fn expect_ws_msg_json(msg: Option<Result<Frame, ProtocolError>>, expect_msg: &str) -> Value {
+    if let Some(Ok(awc::ws::Frame::Text(txt))) = msg {
+        serde_json::from_slice(&txt).unwrap()
+    } else {
+        panic!("{expect_msg}");
+    }
+}
+
+async fn send_ws_msg<Ws>(ws: &mut Ws, msg: impl ToString)
+where
+    Ws: SinkExt<ws::Message> + Unpin,
+    Ws::Error: fmt::Debug,
+{
+    ws.send(ws::Message::Text(msg.to_string().into()))
+        .await
+        .unwrap()
+}
+
+async fn login_as(guest_name: &str) -> (String, String) {
+    let body = expect_send_json(
+        request_post("auth/guest").send_json(&json!({ "guest_name": guest_name })),
+        StatusCode::OK,
+    )
+    .await;
+
+    (
+        expect_json_string(&body, "jwt"),
+        expect_json_string(&body, "id"),
+    )
 }
 
 /// Test que simula el flujo completo con dos usuarios:
@@ -30,146 +96,126 @@ async fn obtener_token_for_user(guest_name: &str) -> String {
 /// 4. El usuario guest solicita unirse al proyecto con acceso de editor
 /// 5. El owner aprueba la solicitud con grant_editor
 /// 6. El usuario guest realiza varias operaciones: insert, delete, sync y consulta de archivos
-#[test]
+#[actix_rt::test]
 async fn test_flow_two_users() {
-    // --- 1. Iniciar sesión para ambos usuarios ---
-    let guest_token = obtener_token_for_user("guest").await;
-    let owner_token = obtener_token_for_user("owner").await;
+    // --- 1. Log in for both users ---
+    let (owner, owner_id) = login_as("owner").await;
+    let (guest, guest_id) = login_as("guest").await;
 
-    // --- 2. Conectarse vía WebSocket para cada usuario ---
-    let (guest_response, mut guest_ws) = Client::new()
-        .ws(WS_URL)
-        .set_header("Authorization", format!("Bearer {}", guest_token))
-        .connect()
-        .await
-        .unwrap();
+    // --- 2. Create project as "owner" ---
+    let project_id = expect_send_json(
+        request_post("create/test_project")
+            .insert_header(auth_header(&owner))
+            .send(),
+        StatusCode::CREATED,
+    )
+    .await;
+    let project_id = expect_json_string(&project_id, "id");
 
-    let (owner_response, mut owner_ws) = Client::new()
-        .ws(WS_URL)
-        .set_header("Authorization", format!("Bearer {}", owner_token))
-        .connect()
-        .await
-        .unwrap();
+    // --- 3. Connect both websockets ---
+    let (_, mut owner_ws) = request_ws_as(owner, &project_id).connect().await.unwrap();
 
-    // Recibir el mensaje de handshake y extraer user_id
-    let guest_user_id = if let Some(Ok(awc::ws::Frame::Text(txt))) = guest_ws.next().await {
-        let resp: Value = serde_json::from_slice(&txt).unwrap();
-        assert_eq!(resp.get("action").unwrap(), "user_connected");
-        resp.get("user_id")
-            .expect("Falta user_id en guest handshake")
-            .as_str()
-            .unwrap()
-            .to_string()
-    } else {
-        panic!("No se recibió handshake para guest");
-    };
-
-    let owner_user_id = if let Some(Ok(awc::ws::Frame::Text(txt))) = owner_ws.next().await {
-        let resp: Value = serde_json::from_slice(&txt).unwrap();
-        assert_eq!(resp.get("action").unwrap(), "user_connected");
-        resp.get("user_id")
-            .expect("Falta user_id en owner handshake")
-            .as_str()
-            .unwrap()
-            .to_string()
-    } else {
-        panic!("No se recibió handshake para owner");
-    };
-
-    // --- 3. Owner crea el proyecto ---
-    let create_project_msg = json!({
-        "action": "create_project",
-        "project_id": "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded",
-        "name": "Proyecto Uno",
-        "is_public": false,
-        "password": "123"
-    });
-    owner_ws
-        .send(awc::ws::Message::Text(
-            create_project_msg.to_string().into(),
-        ))
-        .await
-        .unwrap();
-
-    if let Some(Ok(awc::ws::Frame::Text(txt))) = owner_ws.next().await {
-        let resp: Value = serde_json::from_slice(&txt).unwrap();
-        assert_eq!(
-            resp,
-            json!({
-                "action": "project_created",
-                "project_id": "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded"
-            })
-        );
-    } else {
-        panic!("No se recibió respuesta a create_project");
+    // Owner handshake
+    {
+        let msg = expect_ws_msg_json(owner_ws.next().await, "Should receive welcome");
+        let action = expect_json_value(&msg, "action");
+        assert_eq!(action, "welcome");
+        let users = expect_json_object(&msg, "users");
+        assert_eq!(users.len(), 1, "Self should be included");
+        assert!(users.contains_key(&owner_id), "Self should be included")
     }
 
-    // --- 4. Guest solicita unirse al proyecto (acceso de editor) ---
-    let join_project_msg = json!({
-        "action": "join_project",
-        "project_id": "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded",
-        "access": "editor",
-        "password": "123"
-    });
-    guest_ws
-        .send(awc::ws::Message::Text(join_project_msg.to_string().into()))
-        .await
-        .unwrap();
-
-    if let Some(Ok(awc::ws::Frame::Text(txt))) = guest_ws.next().await {
-        let resp: Value = serde_json::from_slice(&txt).unwrap();
-        assert_eq!(
-            resp,
-            json!({
-                "action": "editor_request_received",
-                "project_id": "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded"
-            })
-        );
-    } else {
-        panic!("No se recibió respuesta a join_project");
+    // Owner get notified about its own connection
+    {
+        let msg = expect_ws_msg_json(owner_ws.next().await, "Should receive own connection");
+        let action = expect_json_string(&msg, "action");
+        assert_eq!(action, "user_connected");
+        let user_id = expect_json_string(&msg, "user_id");
+        assert_eq!(user_id, owner_id);
     }
 
-    // --- 5. Owner concede permisos de editor al usuario guest ---
-    let grant_editor_msg = json!({
-        "action": "grant_editor",
-        "project_id": "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded",
-        "user_id": guest_user_id
-    });
-    owner_ws
-        .send(awc::ws::Message::Text(grant_editor_msg.to_string().into()))
-        .await
-        .unwrap();
+    let (_, mut guest_ws) = request_ws_as(guest, &project_id).connect().await.unwrap();
 
-    if let Some(Ok(awc::ws::Frame::Text(txt))) = owner_ws.next().await {
-        let resp: Value = serde_json::from_slice(&txt).unwrap();
-        assert_eq!(resp.get("action").unwrap(), "update");
-        assert_eq!(
-            resp.get("project_id").unwrap(),
-            "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded"
-        );
-        assert_eq!(resp.get("file").unwrap(), "");
-        let expected_content = format!("Usuario {} ahora tiene permisos de editor", guest_user_id);
-        // assert_eq!(resp.get("content").unwrap(), expected_content);
-        assert_eq!(
-            resp.get("content").unwrap().as_str().unwrap(),
-            expected_content
-        );
-    } else {
-        panic!("No se recibió respuesta a grant_editor");
+    // Guest handshake
+    {
+        let msg = expect_ws_msg_json(guest_ws.next().await, "Should receive welcome");
+        let action = expect_json_value(&msg, "action");
+        assert_eq!(action, "welcome");
+        let users = expect_json_object(&msg, "users");
+        assert_eq!(users.len(), 2, "Self should be included");
+        assert!(users.contains_key(&guest_id), "Self should be included")
     }
 
-    // --- 6. Guest inserta texto en "documento.txt" ---
-    let insert_doc_msg = json!({
-        "action": "insert",
-        "project_id": "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded",
-        "file": "documento.txt",
-        "pos": 0,
-        "text": "Hola mundo"
-    });
-    guest_ws
-        .send(awc::ws::Message::Text(insert_doc_msg.to_string().into()))
-        .await
-        .unwrap();
+    // Guest get notified about its own connection
+    {
+        let msg = expect_ws_msg_json(guest_ws.next().await, "Should receive own connection");
+        let action = expect_json_string(&msg, "action");
+        assert_eq!(action, "user_connected");
+        let user_id = expect_json_string(&msg, "user_id");
+        assert_eq!(user_id, guest_id);
+    }
+
+    // Owner get notified about new guest
+    {
+        let msg = expect_ws_msg_json(owner_ws.next().await, "Should receive guest connection");
+        let action = expect_json_string(&msg, "action");
+        assert_eq!(action, "user_connected");
+        let user_id = expect_json_string(&msg, "user_id");
+        assert_eq!(user_id, guest_id);
+    }
+
+    // --- 4. Gives editor to guest ---
+    send_ws_msg(
+        &mut owner_ws,
+        json!({
+            "action": "permit_access",
+            "user_id": guest_id,
+            "access": "editor",
+        }),
+    )
+    .await;
+
+    // Access update
+    {
+        let msg = expect_ws_msg_json(owner_ws.next().await, "Should receive access update");
+        let action = expect_json_string(&msg, "action");
+        assert_eq!(action, "update_access");
+        let user_id = expect_json_string(&msg, "user_id");
+        assert_eq!(user_id, guest_id);
+        let access = expect_json_string(&msg, "access");
+        assert_eq!(access, "editor");
+    }
+
+    {
+        let msg = expect_ws_msg_json(guest_ws.next().await, "Should receive access update");
+        let action = expect_json_string(&msg, "action");
+        assert_eq!(action, "update_access");
+        let user_id = expect_json_string(&msg, "user_id");
+        assert_eq!(user_id, guest_id);
+        let access = expect_json_string(&msg, "access");
+        assert_eq!(access, "editor");
+    }
+
+    // --- 4. Inserts text in "test" file ---
+    send_ws_msg(
+        &mut guest_ws,
+        json!({
+            "action": "file_create",
+            "file": "test",
+        }),
+    )
+    .await;
+
+    send_ws_msg(
+        &mut guest_ws,
+        json!({
+            "action": "sync",
+            "revision": 0,
+            "file": "test",
+            "actions": [{ "kind": "insertion", "from": 0, "text": "hello world", "owner": guest_id }],
+        }),
+    )
+    .await;
 
     if let Some(Ok(awc::ws::Frame::Text(txt))) = guest_ws.next().await {
         let resp: Value = serde_json::from_slice(&txt).unwrap();

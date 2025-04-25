@@ -1,3 +1,3 @@
 export * from "./EditingFilesStore.d"
-export * from "./OT.d"
+export * from "./OT"
 export * from "./SyncFilesStore.d"

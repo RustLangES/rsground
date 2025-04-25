@@ -18,7 +18,7 @@ pub struct AuthRequest {
 }
 
 #[get("/auth")]
-pub async fn oauth(oauth: web::Data<OAuthData>) -> impl Responder {
+pub async fn auth(oauth: web::Data<OAuthData>) -> impl Responder {
     let (auth_url, _csrf_token) = oauth
         .client
         .authorize_url(CsrfToken::new_random)
@@ -38,7 +38,7 @@ pub async fn me(req: HttpRequest) -> HttpResult<HttpErrors> {
 }
 
 #[get("/auth/callback")]
-async fn auth_callback(
+async fn callback(
     query: web::Query<AuthRequest>,
     oauth_data: web::Data<OAuthData>,
 ) -> HttpResult<HttpErrors> {
@@ -76,8 +76,8 @@ struct GuestLoginRequest {
     guest_name: String,
 }
 
-#[proof_route(post("/login-guest"))]
-async fn guest_jwt(body: web::Json<GuestLoginRequest>) -> HttpResult<HttpErrors> {
+#[proof_route(post("/auth/guest"))]
+async fn login_guest(body: web::Json<GuestLoginRequest>) -> HttpResult<HttpErrors> {
     let guest_name = &body.guest_name;
     let guest_uuid = Uuid::new_v4().to_string();
     let jwt = RgUserData::new(guest_uuid.clone(), guest_name.clone(), true).encode()?;
@@ -94,7 +94,7 @@ struct UpdateNameRequest {
     new_name: String,
 }
 
-#[proof_route(post("/update-name"))]
+#[proof_route(post("/auth/update"))]
 async fn update_name(
     body: web::Json<UpdateNameRequest>,
     req: actix_web::HttpRequest,

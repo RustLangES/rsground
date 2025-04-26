@@ -32,7 +32,6 @@ impl AccessLevel {
             .ok_or(ServerMessageError::NotAccessible)
     }
 
-    #[expect(dead_code)]
     pub fn need_editor(&self) -> Result<(), ServerMessageError> {
         match self {
             Self::Queue => Err(ServerMessageError::NotAccessible),

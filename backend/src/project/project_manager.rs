@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::auth::jwt::RgUserData;
 use crate::ws::messages::ServerMessageError;
 
-use super::project::Project;
+use super::Project;
 
 pub struct ProjectManager {
     projects: HashMap<Uuid, Project>,
@@ -18,7 +18,6 @@ impl ProjectManager {
         }
     }
 
-    #[expect(dead_code)]
     pub fn new_project(&mut self, owner: &RgUserData, name: impl Into<String>) -> &mut Project {
         let project = Project::new(owner.id.clone(), name);
 
@@ -35,7 +34,6 @@ impl ProjectManager {
         unsafe { self.projects.get_mut(&project_id).unwrap_unchecked() }
     }
 
-    #[expect(dead_code)]
     pub fn get_project(&self, id: &Uuid) -> Option<&Project> {
         self.projects.get(id)
     }

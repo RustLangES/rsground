@@ -126,7 +126,6 @@ impl RgWebsocket {
 
                 project.permit_access(user_id.clone(), access);
 
-                // Update everyone for the new user
                 _ = project
                     .broadcast
                     .send(ServerMessage::UpdateAccess { user_id, access });
@@ -151,11 +150,15 @@ impl RgWebsocket {
 
                 dbg!(&doc.buffer);
 
-                Ok(ServerMessage::Sync {
+                let msg = ServerMessage::Sync {
                     file,
                     revision: doc.revision(),
                     actions: doc.get_history_since(revision),
-                })
+                };
+
+                _ = project.broadcast.send(msg);
+
+                Err(ServerMessageError::None)
             }
             ClientMessage::SyncFiles => {
                 self.access.need_read()?;

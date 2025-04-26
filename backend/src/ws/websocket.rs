@@ -1,22 +1,18 @@
-use std::sync::Arc;
-
 use actix_ws as ws;
 use futures::StreamExt;
-use tokio::sync::{broadcast, Notify};
+use tokio::sync::broadcast;
 use uuid::Uuid;
 
 use crate::auth::jwt::RgUserData;
 use crate::http_errors::HttpErrors;
 use crate::project::AccessLevel;
 use crate::state::AppState;
-use crate::ws::ws_ext::SessionExt;
 
 use super::messages::ServerMessage;
 
 pub struct RgWebsocket {
     pub app_state: AppState,
     pub access: AccessLevel,
-    pub access_changed: Arc<Notify>,
     pub broadcast: broadcast::Receiver<ServerMessage>,
     pub project_id: Uuid,
     pub session_id: String,
@@ -30,8 +26,6 @@ impl RgWebsocket {
         project_id: Uuid,
         password: Option<String>,
     ) -> Result<Self, HttpErrors> {
-        let access_changed = Arc::new(Notify::new());
-
         let (broadcast, access) = {
             let mut manager = app_state.get_manager();
             let Ok(project) = manager.get_project_mut(project_id) else {
@@ -42,13 +36,12 @@ impl RgWebsocket {
 
             (
                 broadcast.subscribe(),
-                project.join_project(&user_info.id, password, access_changed.clone())?,
+                project.join_project(&user_info.id, password)?,
             )
         };
 
         let ws = Self {
             app_state,
-            access_changed,
             broadcast,
             user_info,
             project_id,
@@ -65,16 +58,12 @@ impl RgWebsocket {
 
             loop {
                 tokio::select! {
-                    // TODO: Handle access change by broadcast
-                    _ = self.access_changed.notified() => {
-                        self.handle_access_change(&mut session).await;
-                    },
                     msg = self.broadcast.recv() => {
                         let Ok(msg) = msg else {
                             break;
                         };
 
-                        _ = session.text_json(&msg).await;
+                        self.handle_broadcast(msg, &mut session).await;
                     },
                     msg = stream.next() => {
                         let Some(msg) = msg else {

@@ -21,29 +21,6 @@ impl RgWebsocket {
         _ = ctx.text_json(&response).await;
     }
 
-    pub async fn handle_access_change(&mut self, ctx: &mut ws::Session) {
-        let manager = self.app_state.get_manager();
-
-        let Some(project) = manager.get_project(&self.project_id) else {
-            return;
-        };
-
-        let new_access = project
-            .allowed_users
-            .get(&self.user_info.id)
-            .copied()
-            .unwrap_or_default();
-
-        self.access = new_access;
-
-        _ = ctx
-            .text_json(&ServerMessage::UpdateAccess {
-                access: self.access,
-                user_id: self.user_info.id.clone(),
-            })
-            .await;
-    }
-
     pub async fn handle_welcome(&self, ctx: &mut ws::Session) {
         Self::handle_ws_response(ctx, self.compose_welcome().await).await
     }
@@ -64,6 +41,20 @@ impl RgWebsocket {
             files,
             users,
         })
+    }
+
+    pub async fn handle_broadcast(&mut self, msg: ServerMessage, ctx: &mut ws::Session) {
+        match msg {
+            ServerMessage::UpdateAccess { access, user_id } if user_id == self.user_info.id => {
+                self.access = access;
+
+                _ = ctx
+                    .text_json(&ServerMessage::UpdateAccess { access, user_id })
+                    .await;
+            }
+            _ if self.access.can_read() => _ = ctx.text_json(&msg).await,
+            _ => {}
+        }
     }
 
     pub async fn handle_ws_msg(
@@ -135,11 +126,6 @@ impl RgWebsocket {
 
                 project.permit_access(user_id.clone(), access);
 
-                // TODO: Handle access change by broadcast
-                if let Some(notifier) = project.pending_requests.remove(&user_id) {
-                    notifier.notify_waiters();
-                }
-
                 // Update everyone for the new user
                 _ = project
                     .broadcast
@@ -162,6 +148,8 @@ impl RgWebsocket {
                 })?;
 
                 doc.compose(revision, actions);
+
+                dbg!(&doc.buffer);
 
                 Ok(ServerMessage::Sync {
                     file,

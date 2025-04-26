@@ -4,7 +4,7 @@ import { setAuthInfo } from "../stores";
 
 export async function loginGuest(guest_name: string): Promise<AuthInfo> {
   const res = await fetch(
-    `${BACKEND_HOST}/login-guest`,
+    `${BACKEND_HOST}/auth/guest`,
     {
       method: "POST",
       headers: {

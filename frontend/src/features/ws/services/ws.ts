@@ -1,13 +1,17 @@
-import { authInfo } from "@features/auth/stores";
 import { observable, untrack } from "solid-js";
-import { setWsSession, setWsSessionId, wsQueue, wsSession } from "../stores";
+
+import { authInfo } from "@features/auth/stores";
+import { projectId } from "@features/colab/stores";
 import { BACKEND_HOST } from "@services";
+
+import { setWsSession, setWsSessionId, wsQueue, wsSession } from "../stores";
 import { ClientMessage, ClientMessageKind, ServerMessage, ServerMessageKind, WsCallback } from "../types";
 
 export function startWebsocket() {
-  observable(authInfo).subscribe((authInfo) => {
-    if (authInfo?.jwt) {
-      connectWs(authInfo.jwt);
+  observable(() => [authInfo(), projectId()] as const).subscribe(([authInfo, projectId]) => {
+    if (!!authInfo?.jwt && !!projectId) {
+      wsSession()?.close();
+      connectWs(authInfo.jwt, projectId);
     } else {
       setWsSession(null);
     }
@@ -28,12 +32,12 @@ export function startWebsocket() {
 
 const wsUrl = new URL(BACKEND_HOST);
 wsUrl.protocol = wsUrl.protocol === "http:" ? "ws:" : "wss:";
-wsUrl.pathname = "/ws";
+wsUrl.pathname = "/ws/";
 
 const ws_callbacks: Array<(msg: ServerMessage) => void> = [];
 
-function connectWs(jwt: string) {
-  const session = new WebSocket(wsUrl, [`auth.${jwt}`]);
+function connectWs(jwt: string, projectId: string) {
+  const session = new WebSocket(wsUrl + projectId, [`auth.${jwt}`]);
 
   session.addEventListener("open", () => {
     setWsSession(session);

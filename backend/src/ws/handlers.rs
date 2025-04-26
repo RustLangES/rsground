@@ -70,19 +70,21 @@ impl RgWebsocket {
             ws::AggregatedMessage::Text(text) => {
                 log::trace!("New message: {text}");
 
-                let Ok(client_msg) = serde_json::from_str::<ClientMessage>(&text)
-                    .inspect_err(|err| log::error!("Could not parse message: {err}"))
-                else {
-                    let err = ServerMessage::Error {
-                        message: "Invalid message".into(),
-                    };
-                    _ = ctx.text_json(&err).await;
-                    return;
-                };
+                match serde_json::from_str::<ClientMessage>(&text) {
+                    Ok(client_msg) => {
+                        let msg = self.handle_client_message(&ctx, client_msg).await;
 
-                let msg = self.handle_client_message(&ctx, client_msg).await;
+                        Self::handle_ws_response(ctx, msg).await;
+                    }
+                    Err(err) => {
+                        log::error!("Could not parse message: {err}");
 
-                Self::handle_ws_response(ctx, msg).await;
+                        let err = ServerMessage::Error {
+                            message: err.to_string(),
+                        };
+                        _ = ctx.text_json(&err).await;
+                    }
+                }
             }
             ws::AggregatedMessage::Close(reason) => {
                 log::info!("Closed connection: {reason:?}");

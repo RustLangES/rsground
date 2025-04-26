@@ -109,6 +109,12 @@ impl RgWebsocket {
 
                 project.add_file(file, Document::new());
 
+                let msg = ServerMessage::ProjectFiles {
+                    files: project.get_files(),
+                };
+
+                _ = project.broadcast.send(msg);
+
                 Err(ServerMessageError::None)
             }
             ClientMessage::FileDelete { file } => {

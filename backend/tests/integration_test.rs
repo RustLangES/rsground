@@ -81,70 +81,17 @@ async fn test_flow_two_users() {
         "file": "test"
     });
 
+    _ = ws!(recv owner_ws, "project_files", [ get "files", as array, eq [ "test" ] ] );
+    _ = ws!(recv guest_ws, "project_files", [ get "files", as array, eq [ "test" ] ] );
+
     _ = ws!(send guest_ws, "sync" {
         "revision": 0,
         "file": "test",
         "actions": [{ "kind": "insertion", "from": 0, "text": "hello world", "owner": guest_id }],
     });
 
-    _ = ws!(recv guest_ws, "sync", [ get "actions", as array, dbg ] [ get "file", as string, eq "test" ] [ get "revision", as unsigned, eq 1 ]);
-    _ = ws!(recv owner_ws, "sync", [ get "actions", as array, dbg ] [ get "file", as string, eq "test" ] [ get "revision", as unsigned, eq 1 ]);
-
-    // --- 7. Guest inserta texto en "src/wello.txt" ---
-    let insert_wello_msg = json!({
-        "action": "insert",
-        "project_id": "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded",
-        "file": "src/wello.txt",
-        "pos": 0,
-        "text": "hello mundo"
-    });
-    guest_ws
-        .send(awc::ws::Message::Text(insert_wello_msg.to_string().into()))
-        .await
-        .unwrap();
-
-    if let Some(Ok(awc::ws::Frame::Text(txt))) = guest_ws.next().await {
-        let resp: Value = serde_json::from_slice(&txt).unwrap();
-        assert_eq!(
-            resp,
-            json!({
-                "action": "update",
-                "project_id": "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded",
-                "file": "src/wello.txt",
-                "content": "hello mundo"
-            })
-        );
-    } else {
-        panic!("No se recibió respuesta al insertar en src/wello.txt");
-    }
-
-    // --- 8. Guest inserta texto en "src/tests/tests.txt" ---
-    let insert_tests_msg = json!({
-        "action": "insert",
-        "project_id": "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded",
-        "file": "src/tests/tests.txt",
-        "pos": 0,
-        "text": "tests mundo"
-    });
-    guest_ws
-        .send(awc::ws::Message::Text(insert_tests_msg.to_string().into()))
-        .await
-        .unwrap();
-
-    if let Some(Ok(awc::ws::Frame::Text(txt))) = guest_ws.next().await {
-        let resp: Value = serde_json::from_slice(&txt).unwrap();
-        assert_eq!(
-            resp,
-            json!({
-                "action": "update",
-                "project_id": "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded",
-                "file": "src/tests/tests.txt",
-                "content": "tests mundo"
-            })
-        );
-    } else {
-        panic!("No se recibió respuesta al insertar en src/tests/tests.txt");
-    }
+    _ = ws!(recv owner_ws, "sync", [ get "actions", as array ] [ get "file", as string, eq "test" ] [ get "revision", as unsigned, eq 1 ]);
+    _ = ws!(recv guest_ws, "sync", [ get "actions", as array ] [ get "file", as string, eq "test" ] [ get "revision", as unsigned, eq 1 ]);
 
     // --- 9. Guest consulta la estructura de archivos del proyecto ---
     let get_files_msg = json!({

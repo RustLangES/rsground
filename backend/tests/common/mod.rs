@@ -100,7 +100,7 @@ macro_rules! ws {
             Ok(Some(Ok(awc::ws::Frame::Text(msg)))) =>  {
                 json_assert!(
                     ::serde_json::from_slice::<::serde_json::Value>(&msg).unwrap(),
-                    tee_ref 
+                    tee_ref
                     [ get "action", as string, eq $name ]
                     $($($tt)+)?
                 )

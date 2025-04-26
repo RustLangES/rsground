@@ -1,6 +1,6 @@
 use tokio::sync::Notify;
 
-use super::ot::transform_actions;
+use super::ot::{apply_actions, transform_actions};
 use super::Action;
 
 #[derive(Debug)]
@@ -37,6 +37,7 @@ impl Document {
     /// - Notify to document listeners
     pub fn compose(&mut self, revision: usize, mut actions: Vec<Action>) -> Vec<Action> {
         if revision == self.revision() {
+            self.buffer = apply_actions(&self.buffer, &actions);
             self.history.extend(actions.iter().cloned());
             self.notify.notify_waiters();
             return actions;
@@ -49,6 +50,7 @@ impl Document {
 
         transform_actions(actions.as_mut_slice(), desynchronized_history);
 
+        self.buffer = apply_actions(&self.buffer, &actions);
         self.history.extend_from_slice(&actions);
         self.notify.notify_waiters();
 

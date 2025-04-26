@@ -1,8 +1,6 @@
 mod common;
 
-use awc::http::StatusCode;
 use futures_util::{sink::SinkExt, stream::StreamExt};
-use serde_json::{json, Value};
 
 async fn login_as(guest_name: &str) -> (String, String) {
     request!([POST] "/auth/guest"
@@ -50,10 +48,11 @@ async fn test_flow_two_users() {
     let mut guest_ws = ws!(connect guest, &project_id);
 
     // Guest handshake
-    {
-        let (_, users) = ws!(recv guest_ws, "welcome", [ get "users", as object ]);
-        assert!(users.contains_key(&guest_id), "Self should be included")
-    }
+    let guest_session = {
+        let (_, users, session_id) = ws!(recv guest_ws, "welcome", [ get "users", as object ] [ get "session_id", as string ]);
+        assert!(users.contains_key(&guest_id), "Self should be included");
+        session_id
+    };
 
     // Get notified about guest connection
     _ = ws!(recv guest_ws, "user_connected", [ get "user_id", as string, eq guest_id ]);
@@ -80,7 +79,7 @@ async fn test_flow_two_users() {
     _ = ws!(send guest_ws, "sync" {
         "revision": 0,
         "file": "test",
-        "actions": [{ "kind": "insertion", "from": 0, "text": "hello world", "owner": guest_id }],
+        "actions": [{ "kind": "insertion", "from": 0, "text": "hello world", "owner": guest_session }],
     });
 
     _ = ws!(recv owner_ws, "sync", [ get "actions", as array ] [ get "file", as string, eq "test" ] [ get "revision", as unsigned, eq 1 ]);
@@ -90,7 +89,7 @@ async fn test_flow_two_users() {
     _ = ws!(send guest_ws, "sync" {
         "revision": 0,
         "file": "test",
-        "actions": [{ "kind": "deletion", "from": 0, "to": 5, "owner": guest_id }],
+        "actions": [{ "kind": "deletion", "from": 0, "to": 5, "owner": guest_session }],
     });
 
     _ = ws!(recv owner_ws, "sync", [ get "actions", as array ] [ get "file", as string, eq "test" ] [ get "revision", as unsigned, eq 2 ]);

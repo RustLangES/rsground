@@ -1,11 +1,6 @@
 use core::fmt;
 
-use actix_ws::ProtocolError;
 use awc::http::header::TryIntoHeaderPair;
-use awc::ws::Frame;
-use awc::{ws, Client, ClientRequest, SendClientRequest};
-use futures_util::sink::SinkExt;
-use serde_json::{Map, Value};
 
 #[macro_export(local_inner_macros)]
 macro_rules! _const {
@@ -16,9 +11,6 @@ macro_rules! _const {
         "ws://localhost:8080/ws"
     };
 }
-
-pub const API_URL: &str = _const!(API_URL);
-pub const WS_URL: &str = _const!(WS_URL);
 
 pub fn auth_header(token: impl fmt::Display) -> impl TryIntoHeaderPair {
     ("Authorization", format!("Bearer {token}"))

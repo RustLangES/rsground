@@ -65,7 +65,7 @@ function AuthModalGithub() {
         <span>Logged as</span>
 
         <h3 class={styles.username}>
-          {authInfo()?.name ?? authInfo()?.username ?? "Guest"}
+          {authInfo()?.name ?? "Not logged"}
         </h3>
       </div>
 

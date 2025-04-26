@@ -2,7 +2,7 @@ import { authInfo } from "@features/auth/stores";
 import { observable, untrack } from "solid-js";
 import { setWsSession, setWsSessionId, wsQueue, wsSession } from "../stores";
 import { BACKEND_HOST } from "@services";
-import { ClientMessage, ServerMessage, ServerMessageKind, WsCallback } from "../types";
+import { ClientMessage, ClientMessageKind, ServerMessage, ServerMessageKind, WsCallback } from "../types";
 
 export function startWebsocket() {
   observable(authInfo).subscribe((authInfo) => {
@@ -21,8 +21,8 @@ export function startWebsocket() {
     }
   });
 
-  onWsMessage(ServerMessageKind.UserConnected, (msg) => {
-    setWsSessionId(msg.user_id);
+  onWsMessage(ServerMessageKind.Welcome, (msg) => {
+    setWsSessionId(msg.session_id);
   })
 }
 
@@ -93,11 +93,11 @@ export function onWsMessage(actions_or_cb: string | string[] | WsCallback, maybe
   }
 }
 
-export function sendMessage(msg: ClientMessage) {
+export function sendMessage<A extends ClientMessageKind>(action: A, msg: Omit<ClientMessage<A>, "action">) {
   const session = untrack(wsSession);
   if (session) {
     session.send(JSON.stringify(msg));
   } else {
-    wsQueue.push(msg);
+    wsQueue.push({action, ...msg} as ClientMessage<A>);
   }
 }

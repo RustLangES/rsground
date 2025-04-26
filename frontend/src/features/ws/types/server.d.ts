@@ -3,14 +3,11 @@ import { Action } from "./action";
 
 export enum ServerMessageKind {
   Error = "error",
-  JoinedProject = "joined_project",
-  ProjectCreated = "project_created",
   ProjectFiles = "project_files",
-  ProjectForked = "project_forked",
-  Update = "update",
   UpdateAccess = "update_access",
   UserConnected = "user_connected",
-  SyncActions = "sync_actions",
+  Sync = "sync",
+  Welcome = "welcome",
 }
 
 export type ServerMessage<S extends ServerMessageKind = ServerMessageKind> = {
@@ -18,27 +15,9 @@ export type ServerMessage<S extends ServerMessageKind = ServerMessageKind> = {
     action: ServerMessageKind.Error;
     message: string;
   };
-  [ServerMessageKind.JoinedProject]: {
-    action: ServerMessageKind.JoinedProject;
-    access: AccessLevel;
-    user_id: string;
-  };
-  [ServerMessageKind.ProjectCreated]: {
-    action: ServerMessageKind.ProjectCreated;
-    project_id: string;
-  };
   [ServerMessageKind.ProjectFiles]: {
     action: ServerMessageKind.ProjectFiles;
     files: Array<string>;
-  };
-  [ServerMessageKind.ProjectForked]: {
-    action: ServerMessageKind.ProjectForked;
-    project_id: string;
-  };
-  [ServerMessageKind.Update]: {
-    action: ServerMessageKind.Update;
-    file: string;
-    content: string;
   };
   [ServerMessageKind.UpdateAccess]: {
     action: ServerMessageKind.UpdateAccess;
@@ -49,9 +28,16 @@ export type ServerMessage<S extends ServerMessageKind = ServerMessageKind> = {
     action: ServerMessageKind.UserConnected;
     user_id: string;
   };
-  [ServerMessageKind.SyncActions]: {
-    action: ServerMessageKind.SyncActions;
+  [ServerMessageKind.Sync]: {
+    action: ServerMessageKind.Sync;
     file: string;
+    revision: number;
     actions: Array<Action>;
+  };
+  [ServerMessageKind.Welcome]: {
+    action: ServerMessageKind.Welcome;
+    session_id: string;
+    files: Array<string>;
+    users: Record<string, AccessLevel>;
   };
 }[S];

@@ -1,11 +1,35 @@
+import { OtOperation } from "@features/editor/types";
 import { AccessLevel } from "./access";
 
-export type ClientMessage =
-  | { action: "create_project"; name: string }
-  | { action: "delete"; file: string; range_start: number; range_end: number }
-  | { action: "fork_project"; project_id: string }
-  | { action: "get_project_files" }
-  | { action: "insert"; file: string; pos: number; text: string }
-  | { action: "join_project"; project_id: string; password?: string }
-  | { action: "permit_access"; user_id: string; access: AccessLevel }
-  | { action: "sync"; file: String; last_timestamp: number };
+export enum ClientMessageKind {
+  PermitAccess = "permit_access",
+  FileCreate = "file_create",
+  FileDelete = "file_delete",
+  Sync = "sync",
+  SyncFiles = "sync_files",
+}
+
+export type ClientMessage<S extends ClientMessageKind = ClientMessageKind> = {
+  [ClientMessageKind.PermitAccess]: {
+    action: ClientMessageKind.PermitAccess;
+    user_id: string;
+    access: AccessLevel;
+  };
+  [ClientMessageKind.FileCreate]: {
+    action: ClientMessageKind.FileCreate;
+    file: string;
+  };
+  [ClientMessageKind.FileDelete]: {
+    action: ClientMessageKind.FileDelete;
+    file: string;
+  };
+  [ClientMessageKind.Sync]: {
+    action: ClientMessageKind.Sync;
+    file: string;
+    revision: number;
+    actions: Array<OtOperation>;
+  };
+  [ClientMessageKind.SyncFiles]: {
+    action: ClientMessageKind.SyncFiles;
+  };
+}[S];

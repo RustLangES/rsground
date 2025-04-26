@@ -26,13 +26,6 @@ async fn create_project(token: &str) -> String {
     )
 }
 
-/// Test que simula el flujo completo con dos usuarios:
-/// 1. Inician sesión como "guest" y "owner"
-/// 2. Se conectan vía WebSocket y reciben su user_id
-/// 3. Con el token de owner se crea un proyecto privado con contraseña
-/// 4. El usuario guest solicita unirse al proyecto con acceso de editor
-/// 5. El owner aprueba la solicitud con grant_editor
-/// 6. El usuario guest realiza varias operaciones: insert, delete, sync y consulta de archivos
 #[actix_rt::test]
 async fn test_flow_two_users() {
     // --- 1. Log in for both users ---
@@ -76,7 +69,7 @@ async fn test_flow_two_users() {
     _ = ws!(recv owner_ws, "update_access", [ get "user_id", as string, eq guest_id ] [ get "access", as string, eq "editor" ]);
     _ = ws!(recv guest_ws, "update_access", [ get "user_id", as string, eq guest_id ] [ get "access", as string, eq "editor" ]);
 
-    // --- 4. Inserts text in "test" file ---
+    // --- 5. Inserts text in "test" file ---
     _ = ws!(send guest_ws, "file_create" {
         "file": "test"
     });
@@ -93,108 +86,21 @@ async fn test_flow_two_users() {
     _ = ws!(recv owner_ws, "sync", [ get "actions", as array ] [ get "file", as string, eq "test" ] [ get "revision", as unsigned, eq 1 ]);
     _ = ws!(recv guest_ws, "sync", [ get "actions", as array ] [ get "file", as string, eq "test" ] [ get "revision", as unsigned, eq 1 ]);
 
-    // --- 9. Guest consulta la estructura de archivos del proyecto ---
-    let get_files_msg = json!({
-        "action": "get_project_files",
-        "project_id": "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded"
+    // --- 6. Guest deletes text in "test" file ---
+    _ = ws!(send guest_ws, "sync" {
+        "revision": 0,
+        "file": "test",
+        "actions": [{ "kind": "deletion", "from": 0, "to": 5, "owner": guest_id }],
     });
-    guest_ws
-        .send(awc::ws::Message::Text(get_files_msg.to_string().into()))
-        .await
-        .unwrap();
 
-    if let Some(Ok(awc::ws::Frame::Text(txt))) = guest_ws.next().await {
-        let resp: Value = serde_json::from_slice(&txt).unwrap();
-        assert_eq!(
-            resp,
-            json!({
-                "action": "project_files",
-                "project_id": "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded",
-                "files": {
-                    "src": {
-                        "wello.txt": null,
-                        "tests": {
-                            "tests.txt": null
-                        }
-                    },
-                    "documento.txt": null
-                }
-            })
-        );
-    } else {
-        panic!("No se recibió respuesta a get_project_files");
-    }
+    _ = ws!(recv owner_ws, "sync", [ get "actions", as array ] [ get "file", as string, eq "test" ] [ get "revision", as unsigned, eq 2 ]);
+    _ = ws!(recv guest_ws, "sync", [ get "actions", as array ] [ get "file", as string, eq "test" ] [ get "revision", as unsigned, eq 2 ]);
 
-    // --- 10. Guest borra parte del texto en "documento.txt" ---
-    let delete_msg = json!({
-        "action": "delete",
-        "project_id": "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded",
-        "file": "documento.txt",
-        "range_start": 0,
-        "range_end": 5
+    // --- 7. Guest deletes "test" file ---
+    _ = ws!(send guest_ws, "file_delete" {
+        "file": "test"
     });
-    guest_ws
-        .send(awc::ws::Message::Text(delete_msg.to_string().into()))
-        .await
-        .unwrap();
 
-    if let Some(Ok(awc::ws::Frame::Text(txt))) = guest_ws.next().await {
-        let resp: Value = serde_json::from_slice(&txt).unwrap();
-        assert_eq!(
-            resp,
-            json!({
-                "action": "update",
-                "project_id": "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded",
-                "file": "documento.txt",
-                "content": "mundo"
-            })
-        );
-    } else {
-        panic!("No se recibió respuesta al borrar en documento.txt");
-    }
-
-    // --- 11. Guest solicita el histórico (sync) de "documento.txt" ---
-    let sync_msg = json!({
-        "action": "sync",
-        "project_id": "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded",
-        "file": "documento.txt",
-        "last_timestamp": 0
-    });
-    guest_ws
-        .send(awc::ws::Message::Text(sync_msg.to_string().into()))
-        .await
-        .unwrap();
-
-    if let Some(Ok(awc::ws::Frame::Text(txt))) = guest_ws.next().await {
-        let resp: Value = serde_json::from_slice(&txt).unwrap();
-        // Se espera una respuesta de sync_actions con dos acciones: inserción y eliminación.
-        assert_eq!(resp.get("action").unwrap(), "sync_actions");
-        assert_eq!(
-            resp.get("project_id").unwrap(),
-            "948cf4cf-b3d8-4e4a-b9b6-e76e4a1d4ded"
-        );
-        assert_eq!(resp.get("file").unwrap(), "documento.txt");
-        let actions = resp.get("actions").unwrap().as_array().unwrap();
-        assert_eq!(actions.len(), 2);
-
-        // Primera acción: inserción
-        let insertion = &actions[0];
-        assert_eq!(insertion.get("type").unwrap(), "insertion");
-        assert_eq!(insertion.get("pos").unwrap(), 0);
-        assert_eq!(insertion.get("text").unwrap(), "Hola mundo");
-        assert!(insertion.get("timestamp").is_some());
-
-        // Segunda acción: eliminación
-        let deletion = &actions[1];
-        assert_eq!(deletion.get("type").unwrap(), "deletion");
-        assert_eq!(deletion.get("range_start").unwrap(), 0);
-        assert_eq!(deletion.get("range_end").unwrap(), 5);
-        assert!(deletion.get("timestamp").is_some());
-    } else {
-        panic!("No se recibió respuesta al hacer sync");
-    }
-}
-
-fn file_manager() {
-    test_flow_two_users()
+    _ = ws!(recv owner_ws, "project_files", [ get "files", as array, dbg, expect empty ] );
+    _ = ws!(recv guest_ws, "project_files", [ get "files", as array, dbg, expect empty ] );
 }

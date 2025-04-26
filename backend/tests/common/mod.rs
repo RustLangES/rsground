@@ -176,6 +176,16 @@ macro_rules! json_assert {
         }] $($($tt)+)?)
     };
 
+    (@json (Array) [$key:literal] [$base:expr] expect empty $(, $($tt:tt)+)?) => {
+        json_assert!(@json (Array) [$key] [{
+            let base = $base;
+            if !base.is_empty() {
+                panic!(concat!('"', $key, "\" should be empty"))
+            }
+            base
+        }] $($($tt)+)?)
+    };
+
     (@json (Value) [$key:literal] [$base:expr] as array $(, $($tt:tt)+)?) => {
         json_assert!(
             @json

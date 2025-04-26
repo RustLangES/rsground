@@ -60,6 +60,10 @@ impl Project {
         unsafe { self.documents.get_mut(&path).unwrap_unchecked() }
     }
 
+    pub fn rm_file(&mut self, path: impl AsRef<str>) -> Option<Document> {
+        self.documents.remove(path.as_ref())
+    }
+
     /// Get all file paths
     pub fn get_files(&self) -> Vec<String> {
         self.documents.keys().cloned().collect()

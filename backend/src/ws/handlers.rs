@@ -121,7 +121,20 @@ impl RgWebsocket {
             }
             ClientMessage::FileDelete { file } => {
                 self.access.need_editor()?;
-                todo!()
+
+                let project = manager.get_project_mut(self.project_id)?;
+
+                if let Some(_) = project.rm_file(&file) {
+                    let msg = ServerMessage::ProjectFiles {
+                        files: project.get_files(),
+                    };
+
+                    _ = project.broadcast.send(msg);
+
+                    Err(ServerMessageError::None)
+                } else {
+                    Err(ServerMessageError::FileNotFound(file))
+                }
             }
             ClientMessage::PermitAccess { user_id, access } => {
                 let project = manager.get_project_mut(self.project_id)?;

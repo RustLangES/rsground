@@ -8,6 +8,39 @@ use crate::http_errors::HttpErrors;
 use crate::project::AccessLevel;
 use crate::state::AppState;
 
+#[proof_route(get("/project/{project_id}"))]
+pub async fn get_project(
+    app_state: web::Data<AppState>,
+    project_id: web::Path<Uuid>,
+    req: HttpRequest,
+) -> HttpResult<HttpErrors> {
+    let app_state = app_state.into_inner();
+    let project_id = project_id.into_inner();
+    let password = Some(req.query_string().to_owned()).take_if(|s| !s.is_empty());
+
+    let user_info = jwt::get_user_info(&req)?;
+
+    let mut manager = app_state.get_manager();
+    let Ok(project) = manager.get_project_mut(project_id) else {
+        return Err(HttpErrors::ProjectDoesNotExist);
+    };
+
+    let access = project.join_project(&user_info.id, password)?;
+
+    if !access.can_read() {
+        return Err(HttpErrors::NotAccessible);
+    }
+
+    Ok(HttpResponse::Ok().json(json!({
+        "id": project.id,
+        "name": project.name,
+        "owner": project.owner,
+        "allowed_users": project.allowed_users,
+        "is_public": project.is_public,
+        "password": project.password
+    })))
+}
+
 #[proof_route(post("/create/{name}"))]
 pub async fn create_project(
     app_state: web::Data<AppState>,

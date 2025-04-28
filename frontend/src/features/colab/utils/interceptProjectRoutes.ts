@@ -1,14 +1,13 @@
-import { observable, untrack } from "solid-js";
+import { observable } from "solid-js";
 
 import { authInfo } from "@features/auth/stores";
 import { AuthInfo } from "@features/auth/types";
 
-import { createProject } from "../services";
+import { createProject, fetchProject } from "../services";
 import { setProjectId } from "../stores";
 
 export function interpectProjectRoutes() {
   if (window.location.pathname === "/") {
-    createProjectWith(untrack(authInfo));
     observable(authInfo).subscribe(createProjectWith);
     return;
   }
@@ -23,7 +22,25 @@ export function interpectProjectRoutes() {
     // TODO: fork project
   }
 
-  setProjectId(projectId);
+  fetchProject(projectId).then((project) => {
+    // Check if has access to project
+    if (project.allowed_users == null) {
+      // TODO: Pending permission
+      alert("TODO: Not allowed")
+    }
+
+    setProjectId(projectId);
+  }).catch((err) => {
+    if (err === 404) {
+      alert("Project not found. Creating new one");
+      observable(authInfo).subscribe(createProjectWith);
+    } else if (err == 401) {
+      // TODO: Invalid password
+      console.error("Invalid password");
+    } else {
+      console.error(err);
+    }
+  });
 }
 
 async function createProjectWith(authInfo: AuthInfo) {

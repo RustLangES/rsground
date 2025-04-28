@@ -28,10 +28,16 @@ pub async fn get_project(
     let access = project.join_project(&user_info.id, password)?;
 
     if !access.can_read() {
-        return Err(HttpErrors::NotAccessible);
+        return Ok(HttpResponse::Unauthorized().json(json!({
+            "access": access,
+            "id": project.id,
+            "name": project.name,
+            "is_public": project.is_public,
+        })));
     }
 
     Ok(HttpResponse::Ok().json(json!({
+        "access": access,
         "id": project.id,
         "name": project.name,
         "owner": project.owner,

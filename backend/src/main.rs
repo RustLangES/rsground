@@ -55,6 +55,7 @@ async fn main() -> std::io::Result<()> {
             .service(auth::routes::update_name)
             .service(project::routes::create_project)
             .service(project::routes::fork_project)
+            .service(project::routes::get_project)
             .service(ws::routes::websocket)
     })
     .bind("127.0.0.1:8080")?

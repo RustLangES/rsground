@@ -1,5 +1,7 @@
 import { dockview } from "@features/panels/stores";
 import { setEditingFiles, setSyncFiles } from "../stores";
+import { sendMessage } from "@features/ws/services";
+import { ClientMessageKind } from "@features/ws/types";
 
 const CODE_EXAMPLE = `
 pub struct Something {
@@ -20,6 +22,8 @@ export async function openFile(filepath: string) {
     component: "code",
     title: filename,
   })
+
+  sendMessage(ClientMessageKind.FileCreate, { file: filepath })
 
   setEditingFiles(filepath, []);
   setSyncFiles(filepath, CODE_EXAMPLE);

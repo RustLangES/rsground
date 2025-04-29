@@ -4,7 +4,7 @@ import { authInfo } from "@features/auth/stores";
 import { projectId } from "@features/colab/stores";
 import { BACKEND_HOST } from "@services";
 
-import { setWsSession, setWsSessionId, wsQueue, wsSession } from "../stores";
+import { clearWsQueue, setWsSession, setWsSessionId, wsQueue, wsSession } from "../stores";
 import { ClientMessage, ClientMessageKind, ServerMessage, ServerMessageKind, WsCallback } from "../types";
 
 export function startWebsocket() {
@@ -22,6 +22,7 @@ export function startWebsocket() {
       for (const msg of wsQueue) {
         wsSession.send(JSON.stringify(msg));
       }
+      clearWsQueue()
     }
   });
 
@@ -98,10 +99,13 @@ export function onWsMessage(actions_or_cb: string | string[] | WsCallback, maybe
 }
 
 export function sendMessage<A extends ClientMessageKind>(action: A, msg: Omit<ClientMessage<A>, "action">) {
+  const msg_action = {action, ...msg} as ClientMessage<A>;
+  console.log("[WS] Sending message:", msg_action)
+
   const session = untrack(wsSession);
   if (session) {
-    session.send(JSON.stringify(msg));
+    session.send(JSON.stringify(msg_action));
   } else {
-    wsQueue.push({action, ...msg} as ClientMessage<A>);
+    wsQueue.push(msg_action);
   }
 }

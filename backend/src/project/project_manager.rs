@@ -8,8 +8,7 @@ use crate::ws::messages::ServerMessageError;
 
 use super::Project;
 
-const MAIN_RS: &str = r#"\
-fn main() {
+const MAIN_RS: &str = r#"fn main() {
   println!("Hello World");
 }"#;
 

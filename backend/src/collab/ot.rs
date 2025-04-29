@@ -47,8 +47,17 @@ pub fn apply_actions(text: impl Into<String>, actions: &[Action]) -> String {
 
     for action in actions {
         match action {
-            Action::Insertion { from, text, .. } => output.insert_str(*from, text),
-            Action::Deletion { from, to, .. } => output.replace_range(from..to, ""),
+            Action::Insertion { from, text, .. } if *from < output.len() => {
+                output.insert_str(*from, text)
+            }
+            Action::Deletion { from, to, .. } if *to < output.len() => {
+                output.drain(from..to);
+            }
+            // Handle out of bounds action
+            Action::Insertion { text, .. } => output.push_str(text),
+            Action::Deletion { from, to, .. } => {
+                output.drain((output.len().saturating_sub(to - from))..);
+            }
         }
     }
 

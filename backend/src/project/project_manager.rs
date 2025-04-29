@@ -3,9 +3,15 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::auth::jwt::RgUserData;
+use crate::collab::Document;
 use crate::ws::messages::ServerMessageError;
 
 use super::Project;
+
+const MAIN_RS: &str = r#"\
+fn main() {
+  println!("Hello World");
+}"#;
 
 pub struct ProjectManager {
     projects: HashMap<Uuid, Project>,
@@ -19,7 +25,9 @@ impl ProjectManager {
     }
 
     pub fn new_project(&mut self, owner: &RgUserData, name: impl Into<String>) -> &mut Project {
-        let project = Project::new(owner.id.clone(), name);
+        let mut project = Project::new(owner.id.clone(), name);
+
+        project.add_file("main.rs", Document::new_with(MAIN_RS.to_string()));
 
         self.add_project(project)
     }

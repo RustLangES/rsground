@@ -20,6 +20,14 @@ impl Document {
         }
     }
 
+    pub fn new_with(buffer: String) -> Self {
+        Document {
+            buffer,
+            notify: Notify::new(),
+            history: Vec::new(),
+        }
+    }
+
     pub fn fork(&self) -> Self {
         Document {
             buffer: self.buffer.clone(),

@@ -1,3 +1,4 @@
+use serde::Serialize;
 use tokio::sync::Notify;
 
 use super::ot::{apply_actions, transform_actions};
@@ -9,6 +10,21 @@ pub struct Document {
     /// Users can subscribe to document events
     pub notify: Notify,
     pub history: Vec<Action>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct DocumentInfo {
+    pub text: String,
+    pub revision: usize,
+}
+
+impl From<&Document> for DocumentInfo {
+    fn from(value: &Document) -> Self {
+        Self {
+            text: value.buffer.clone(),
+            revision: value.history.len(),
+        }
+    }
 }
 
 impl Document {

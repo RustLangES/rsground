@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::collab::Action;
+use crate::collab::{Action, DocumentInfo};
 use crate::project::AccessLevel;
 
 #[derive(Serialize, Deserialize)]
@@ -35,7 +35,7 @@ pub enum ServerMessage {
     },
     ProjectFiles {
         /// List of all file paths
-        files: Vec<String>,
+        files: HashMap<String, DocumentInfo>,
     },
     UpdateAccess {
         access: AccessLevel,
@@ -51,7 +51,7 @@ pub enum ServerMessage {
     },
     Welcome {
         session_id: String,
-        files: Vec<String>,
+        files: HashMap<String, DocumentInfo>,
         users: HashMap<String, AccessLevel>,
     },
 }

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
-use crate::collab::Document;
+use crate::collab::{Document, DocumentInfo};
 use crate::http_errors::HttpErrors;
 use crate::ws::messages::ServerMessage;
 
@@ -65,12 +65,11 @@ impl Project {
     }
 
     /// Get all file paths
-    pub fn get_files(&self) -> Vec<String> {
-        self.documents.keys().cloned().collect()
-    }
-
-    pub fn get_file(&self, path: &str) -> Option<&Document> {
-        self.documents.get(path)
+    pub fn get_files(&self) -> HashMap<String, DocumentInfo> {
+        self.documents
+            .iter()
+            .map(|(path, doc)| (path.clone(), doc.into()))
+            .collect()
     }
 
     pub fn fork(&self, owner: String) -> Project {

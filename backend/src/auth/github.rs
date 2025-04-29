@@ -7,7 +7,6 @@ use crate::utils::expect_var;
 #[derive(Deserialize, Debug)]
 pub struct GitHubUser {
     pub login: String,
-    pub name: Option<String>,
     pub avatar_url: String,
 }
 

@@ -57,8 +57,6 @@ export function Panels() {
 
   setDockview(dockview.api);
 
-  openFile("main.rs");
-
   dockview.api.addPanel({
     id: "output",
     component: "output",

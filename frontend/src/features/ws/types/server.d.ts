@@ -1,5 +1,5 @@
+import { OtOperation } from "@features/editor/types";
 import { AccessLevel } from "./access";
-import { Action } from "./action";
 
 export enum ServerMessageKind {
   Error = "error",
@@ -17,7 +17,7 @@ export type ServerMessage<S extends ServerMessageKind = ServerMessageKind> = {
   };
   [ServerMessageKind.ProjectFiles]: {
     action: ServerMessageKind.ProjectFiles;
-    files: Array<string>;
+    files: Record<string, DocumentInfo>;
   };
   [ServerMessageKind.UpdateAccess]: {
     action: ServerMessageKind.UpdateAccess;
@@ -32,12 +32,17 @@ export type ServerMessage<S extends ServerMessageKind = ServerMessageKind> = {
     action: ServerMessageKind.Sync;
     file: string;
     revision: number;
-    actions: Array<Action>;
+    actions: Array<OtOperation>;
   };
   [ServerMessageKind.Welcome]: {
     action: ServerMessageKind.Welcome;
     session_id: string;
-    files: Array<string>;
+    files: Record<string, DocumentInfo>;
     users: Record<string, AccessLevel>;
   };
 }[S];
+
+export interface DocumentInfo {
+  text: string,
+  revision: number,
+}

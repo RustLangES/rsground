@@ -3,12 +3,12 @@ import { EditorSelection } from "@codemirror/state";
 import { sendableUpdates, Update } from "@codemirror/collab";
 
 import { FileNode } from "@features/file-explorer/types";
-import { sameValueRecord } from "@utils/sameValueRecord";
-
-import { OtOperation, OtOperationKind } from "../types";
-import { optimizeOps } from "./optimizeOps";
 import { sendMessage } from "@features/ws/services";
 import { ClientMessageKind } from "@features/ws/types";
+import { sameValueRecord } from "@utils/sameValueRecord";
+
+import { OtOperation } from "../types";
+import { optimizeOps } from "./optimizeOps";
 
 export function syncExtension(file: FileNode) {
   return EditorView.domEventObservers(

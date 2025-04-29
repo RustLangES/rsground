@@ -1,58 +1,8 @@
 import { createStore, SetStoreFunction, Store } from "solid-js/store";
 import { FileExplorerNode, FileExplorerStore, FileNodeKind } from "../types";
 
-let nextId = 0;
-
 export const [fileExplorer, setFileExplorer] = createStore<FileExplorerStore>({
-  nodes: [
-    {
-      kind: FileNodeKind.Folder as const,
-      data: {
-        id: nextId++,
-        fullPath: "FolderA",
-        name: "FolderA",
-        synced: true,
-        children: [
-          {
-            kind: FileNodeKind.File as const,
-            data: {
-              id: nextId++,
-              fullPath: "FolderA/FileA",
-              filename: "FileA",
-              synced: false,
-            },
-          },
-          {
-            kind: FileNodeKind.File as const,
-            data: {
-              id: nextId++,
-              fullPath: "FolderA/FileB.rs",
-              filename: "FileB.rs",
-              synced: true,
-            },
-          },
-        ],
-      },
-    },
-    {
-      kind: FileNodeKind.File as const,
-      data: {
-        id: nextId++,
-        fullPath: "FileA",
-        filename: "FileA",
-        synced: true,
-      },
-    },
-    {
-      kind: FileNodeKind.File as const,
-      data: {
-        id: nextId++,
-        fullPath: "main.rs",
-        filename: "main.rs",
-        synced: true,
-      },
-    },
-  ],
+  nodes: [],
 }, { name: "FileExplorerStore" });
 
 /**
@@ -97,5 +47,3 @@ export function getNodeByPath(
 
   return null;
 }
-
-export function createNewFolder() {}

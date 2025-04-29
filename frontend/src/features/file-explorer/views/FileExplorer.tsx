@@ -78,15 +78,7 @@ function RenderNodes(props: { nodes: FileExplorerNode[] }) {
 }
 
 export function FileExplorer() {
-  const owner = getOwner();
-
-  onWsMessage(
-    ServerMessageKind.ProjectFiles,
-    (msg) =>
-      runWithOwner(owner, () => {
-        syncFiles(msg.files);
-      }),
-  );
+  onWsMessage(ServerMessageKind.ProjectFiles, (msg) => syncFiles(msg.files));
 
   return (
     <ContextMenu

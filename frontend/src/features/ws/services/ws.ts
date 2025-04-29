@@ -1,4 +1,4 @@
-import { getOwner, observable, runWithOwner, untrack } from "solid-js";
+import { getOwner, observable, Owner, runWithOwner, untrack } from "solid-js";
 
 import { authInfo } from "@features/auth/stores";
 import { projectId } from "@features/colab/stores";
@@ -21,6 +21,8 @@ import {
   WsCallback,
 } from "../types";
 
+let wsOwner: Owner;
+
 export function startWebsocket() {
   observable(() => [authInfo(), projectId()] as const).subscribe(
     ([authInfo, projectId]) => {
@@ -42,16 +44,15 @@ export function startWebsocket() {
     }
   });
 
-  const owner = getOwner();
+  wsOwner = getOwner();
 
-  onWsMessage(ServerMessageKind.Welcome, (msg) =>
-    runWithOwner(owner, () => {
-      setWsSessionId(msg.session_id);
+  onWsMessage(ServerMessageKind.Welcome, (msg) => {
+    setWsSessionId(msg.session_id);
 
-      syncFiles(msg.files);
+    syncFiles(msg.files);
 
-      openFile("main.rs");
-    }));
+    openFile("main.rs");
+  });
 }
 
 const wsUrl = new URL(BACKEND_HOST);
@@ -104,22 +105,25 @@ export function onWsMessage(
   actions_or_cb: string | string[] | WsCallback,
   maybe_cb?: WsCallback,
 ): () => void {
+  let owner = getOwner();
   let cb: WsCallback;
 
   if (actions_or_cb instanceof Array) {
     cb = (msg) => {
       if (actions_or_cb.includes(msg.action)) {
-        maybe_cb!(msg);
+        runWithOwner(owner ?? wsOwner, () => maybe_cb!(msg));
       }
     };
   } else if (typeof actions_or_cb === "string") {
     cb = (msg) => {
       if (actions_or_cb === msg.action) {
-        maybe_cb!(msg);
+        runWithOwner(owner ?? wsOwner, () => maybe_cb!(msg));
       }
     };
   } else {
-    cb = maybe_cb!;
+    cb = (msg) => {
+      runWithOwner(owner ?? wsOwner, () => actions_or_cb(msg));
+    };
   }
 
   ws_callbacks.push(cb);

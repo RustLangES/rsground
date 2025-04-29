@@ -1,40 +1,49 @@
+import { untrack } from "solid-js/web";
 import { EditorView } from "codemirror";
-import { EditorSelection } from "@codemirror/state";
+import {
+  Annotation,
+  ChangeSet,
+  EditorSelection,
+  EditorState,
+  StateField,
+} from "@codemirror/state";
 import { sendableUpdates, Update } from "@codemirror/collab";
+import { ViewUpdate } from "@codemirror/view";
 
 import { FileNode } from "@features/file-explorer/types";
-import { sendMessage } from "@features/ws/services";
-import { ClientMessageKind } from "@features/ws/types";
-import { sameValueRecord } from "@utils/sameValueRecord";
+import { onWsMessage, sendMessage } from "@features/ws/services";
+import { wsSessionId } from "@features/ws/stores";
+import {
+  ClientMessageKind,
+  ServerMessage,
+  ServerMessageKind,
+} from "@features/ws/types";
 
-import { OtOperation } from "../types";
+import { OtOperation, OtOperationKind } from "../types";
+import { editingFiles, setEditingFiles } from "../stores";
 import { optimizeOps } from "./optimizeOps";
 
+const ownerAnnotation = Annotation.define<string>();
+
 export function syncExtension(file: FileNode) {
-  return EditorView.domEventObservers(
-    sameValueRecord([
-      "blur",
-      "focus",
-      "keyup",
-      "keydown",
-      "mouseup",
-      "mousedown",
-      "mousemove",
-      "mouseleave",
-      "mouseenter",
-    ], anyEventHandler(file)),
-  );
+  return EditorView.updateListener.of(anyEventHandler(file));
 }
 
-let expected_revision = 0;
+export function syncExtensionListener(view: EditorView, file: string) {
+  onWsMessage(ServerMessageKind.Sync, (msg) => {
+    if (msg.file === file) {
+      receiveOps(view, file, msg);
+    }
+  });
+}
 
 function anyEventHandler(file: FileNode) {
   let lastCursors: EditorSelection;
-  const handleCursor = (editor: EditorView) => {
-    if (lastCursors && editor.state.selection.eq(lastCursors)) return;
-    lastCursors = editor.state.selection;
+  const handleCursor = (selection: EditorSelection) => {
+    if (lastCursors && selection.eq(lastCursors)) return;
+    lastCursors = selection;
 
-    let cursors = editor.state.selection.ranges.map((value) => ({
+    let cursors = selection.ranges.map((value) => ({
       from: value.from,
       to: value.to,
       head: value.head,
@@ -43,60 +52,57 @@ function anyEventHandler(file: FileNode) {
     console.log("CURSORS", cursors);
   };
 
-  let lastEvents = [];
-  const handleOps = (events: readonly Update[]) => {
-    if (lastEvents.length === events.length) return;
-    lastEvents = events as any[];
+  let accumulated_changes: OtOperation[] = [];
 
-    let ops: OtOperation[] = [];
+  const handleOps = () => {
+    if (accumulated_changes.length === 0) return;
 
-    events.forEach((update) => {
-      update.changes.iterChanges(
-        (fromA, toA, _fromB, _toB, insert) => {
-          const content = insert.sliceString(0, insert.length, "\n");
+    // Prepare ops in the most compact form
+    const ops = sendableOps(accumulated_changes);
+    accumulated_changes = [];
 
-          // There're not early return because replacing text
-          // generate a delete and insert
-          if (fromA != toA) {
-            ops.push(OtOperation.remove(fromA, toA));
-          }
-
-          if (insert.length !== 0) {
-            ops.push(OtOperation.insert(fromA, content));
-          }
-        },
-      );
-    });
-
-    console.log("PRE OPS", ops);
-
-    ops = sendableOps(ops);
-
-    console.log("OPS", ops);
-
-    console.log("REVISION", expected_revision);
+    if (ops.length === 0) return;
 
     sendMessage(ClientMessageKind.Sync, {
       file: file.fullPath,
-      revision: expected_revision,
+      revision: editingFiles[file.fullPath].synced_revision,
       actions: ops,
     });
 
-    expected_revision += ops.length;
+    setEditingFiles(file.fullPath, "local_revision", (n) => n + ops.length);
   };
 
-  const realEventHandler = (editor: EditorView) => {
-    let events = sendableUpdates(editor.state);
-
-    handleCursor(editor);
-    handleOps(events);
+  const realEventHandler = (update: ViewUpdate) => {
+    handleOps();
+    if (update.selectionSet || update.focusChanged) {
+      handleCursor(update.state.selection);
+    }
   };
 
   let cb: NodeJS.Timeout;
-  return (_: unknown, editor: EditorView) => {
+  return (update: ViewUpdate) => {
+    if (update.transactions.some((v) => !!v.annotation(ownerAnnotation))) {
+      return;
+    }
     if (cb) clearTimeout(cb);
 
-    cb = setTimeout(() => realEventHandler(editor), 100);
+    update.changes.iterChanges(
+      (fromA, toA, _fromB, _toB, insert) => {
+        const content = insert.sliceString(0, insert.length, "\n");
+
+        // There're not early return because replacing text
+        // generate a delete and insert
+        if (fromA != toA) {
+          accumulated_changes.push(OtOperation.remove(fromA, toA));
+        }
+
+        if (insert.length !== 0) {
+          accumulated_changes.push(OtOperation.insert(fromA, content));
+        }
+      },
+    );
+
+    cb = setTimeout(() => realEventHandler(update), 100);
   };
 }
 
@@ -123,4 +129,36 @@ function sendableOps(ops: OtOperation[]): OtOperation[] {
   ops = optimizeOps(ops);
 
   return ops;
+}
+
+function receiveOps(
+  editor: EditorView,
+  file: string,
+  msg: ServerMessage<ServerMessageKind.Sync>,
+) {
+  const local_revision = editingFiles[file].synced_revision;
+  const desyncronized_history = msg.actions.slice(local_revision);
+  const me = untrack(wsSessionId);
+
+  setEditingFiles(file, ["local_revision", "synced_revision"], msg.revision);
+
+  for (const action of desyncronized_history) {
+    if (action.owner === me) {
+      continue;
+    }
+
+    const annotations = [ownerAnnotation.of(action.owner)];
+
+    if (action.kind === OtOperationKind.Insert) {
+      editor.dispatch({
+        annotations,
+        changes: { from: action.from, insert: action.text },
+      });
+    } else {
+      editor.dispatch({
+        annotations,
+        changes: { from: action.from, to: action.to },
+      });
+    }
+  }
 }

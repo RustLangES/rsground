@@ -174,7 +174,7 @@ impl RgWebsocket {
                 let msg = ServerMessage::Sync {
                     file,
                     revision: doc.revision(),
-                    actions: doc.get_history_since(revision),
+                    actions: doc.history.clone(),
                 };
 
                 _ = project.broadcast.send(msg);

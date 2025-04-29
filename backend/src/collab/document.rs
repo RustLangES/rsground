@@ -80,12 +80,4 @@ impl Document {
 
         actions
     }
-
-    pub fn get_history_since(&self, revision: usize) -> Vec<Action> {
-        if revision < self.history.len() {
-            self.history[revision..].to_owned()
-        } else {
-            Vec::new()
-        }
-    }
 }

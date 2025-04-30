@@ -1,13 +1,6 @@
 import { untrack } from "solid-js/web";
 import { EditorView } from "codemirror";
-import {
-  Annotation,
-  ChangeSet,
-  EditorSelection,
-  EditorState,
-  StateField,
-} from "@codemirror/state";
-import { sendableUpdates, Update } from "@codemirror/collab";
+import { Annotation, EditorSelection } from "@codemirror/state";
 import { ViewUpdate } from "@codemirror/view";
 
 import { FileNode } from "@features/file-explorer/types";
@@ -22,6 +15,7 @@ import {
 import { OtOperation, OtOperationKind } from "../types";
 import { editingFiles, setEditingFiles, setSyncFiles } from "../stores";
 import { optimizeOps } from "./optimizeOps";
+import { transformIndex } from "./transformIndex";
 
 const ownerAnnotation = Annotation.define<string>();
 
@@ -136,11 +130,15 @@ function receiveOps(
   file: string,
   msg: ServerMessage<ServerMessageKind.Sync>,
 ) {
+  const owner = untrack(wsSessionId);
   const local_revision = editingFiles[file].synced_revision;
   const desyncronized_history = msg.actions.slice(local_revision);
   const me = untrack(wsSessionId);
 
   setEditingFiles(file, "synced_revision", msg.revision);
+
+  const initialCursors = editor.state.selection.ranges;
+  const mainIndex = editor.state.selection.mainIndex;
 
   for (const action of desyncronized_history) {
     if (action.owner === me) {
@@ -161,6 +159,19 @@ function receiveOps(
       });
     }
   }
+
+  const newCursors = initialCursors.map((v) =>
+    EditorSelection.range(
+      transformIndex(v.anchor, owner, desyncronized_history),
+      transformIndex(v.head, owner, desyncronized_history),
+    )
+  );
+
+  editor.update([
+    editor.state.update({
+      selection: EditorSelection.create(newCursors, mainIndex),
+    }),
+  ]);
 
   setSyncFiles(file, editor.state.doc.toString());
 }

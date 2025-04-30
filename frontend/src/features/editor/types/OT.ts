@@ -27,10 +27,11 @@ export enum OtOperationKind {
 export namespace OtOperation {
   /** Check if both operations are equal in practical terms. Don't check owner */
   export function equal(self: OtOperation, other: OtOperation): boolean {
-    return self.kind === other.kind && self.from === other.from &&
+    return !!self && !!other && self.kind === other.kind &&
+      self.from === other.from &&
       // @ts-expect-error - TS is dumb, other is Insert so has `content`
       ((self.kind == OtOperationKind.Insert && self.text === other.text) ||
-      // @ts-expect-error - TS is dumb, other is Delete so has `to`
+        // @ts-expect-error - TS is dumb, other is Delete so has `to`
         (self.kind == OtOperationKind.Delete && self.to === other.to));
   }
 

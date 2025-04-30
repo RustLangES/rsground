@@ -30,7 +30,7 @@ export async function fetchProject(
   let res = await fetch(`${BACKEND_HOST}/project/${project_id}?${password}`, {
     method: "GET",
     headers: {
-      Authorization: `Bearer ${untrack(authInfo).jwt}`,
+      Authorization: `Bearer ${untrack(authInfo)?.jwt}`,
     },
   });
 

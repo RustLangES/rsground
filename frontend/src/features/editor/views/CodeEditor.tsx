@@ -1,10 +1,11 @@
+import { onCleanup } from "solid-js";
 import { CodeMirror } from "@solid-codemirror/codemirror";
 
 import { getNodeByPath } from "@features/file-explorer/stores";
 import { FileNodeKind } from "@features/file-explorer/types";
 
 import { rustExtensions, syncExtension, syncExtensionListener } from "../utils";
-import { syncFiles } from "../stores";
+import { setEditingFiles, syncFiles } from "../stores";
 
 import styles from "./CodeEditor.module.sass";
 
@@ -19,6 +20,12 @@ export function CodeEditor(props: CodeEditorProps) {
   if (file.kind == FileNodeKind.Folder) {
     throw new Error("Really?? Edit a folder?");
   }
+
+  setEditingFiles(file.data.fullPath, "editor_open", true);
+
+  onCleanup(() => {
+    setEditingFiles(file.data.fullPath, "editor_open", false);
+  });
 
   return (
     <CodeMirror

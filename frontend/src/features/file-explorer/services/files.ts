@@ -18,7 +18,7 @@ export function syncFiles(files: Record<string, DocumentInfo>) {
       setSyncFiles(path, doc.text);
       setEditingFiles(path, {
         synced_revision: doc.revision,
-        local_revision: doc.revision,
+        editor_open: false,
       });
     }
 

@@ -20,7 +20,7 @@ import {
 } from "@features/ws/types";
 
 import { OtOperation, OtOperationKind } from "../types";
-import { editingFiles, setEditingFiles } from "../stores";
+import { editingFiles, setEditingFiles, setSyncFiles } from "../stores";
 import { optimizeOps } from "./optimizeOps";
 
 const ownerAnnotation = Annotation.define<string>();
@@ -68,11 +68,11 @@ function anyEventHandler(file: FileNode) {
       revision: editingFiles[file.fullPath].synced_revision,
       actions: ops,
     });
-
-    setEditingFiles(file.fullPath, "local_revision", (n) => n + ops.length);
   };
 
   const realEventHandler = (update: ViewUpdate) => {
+    setSyncFiles(file.fullPath, update.state.doc.toString());
+
     handleOps();
     if (update.selectionSet || update.focusChanged) {
       handleCursor(update.state.selection);
@@ -140,7 +140,7 @@ function receiveOps(
   const desyncronized_history = msg.actions.slice(local_revision);
   const me = untrack(wsSessionId);
 
-  setEditingFiles(file, ["local_revision", "synced_revision"], msg.revision);
+  setEditingFiles(file, "synced_revision", msg.revision);
 
   for (const action of desyncronized_history) {
     if (action.owner === me) {
@@ -161,4 +161,6 @@ function receiveOps(
       });
     }
   }
+
+  setSyncFiles(file, editor.state.doc.toString());
 }

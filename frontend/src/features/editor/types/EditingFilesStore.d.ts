@@ -3,7 +3,7 @@ export type EditingFilesStore = {
   [k: string]: {
     /** Last synced revision */
     synced_revision: number;
-    /** Local revisions ahead of synced */
-    local_revision: number;
+    /** Is any code editor attached to this file */
+    editor_open: boolean;
   };
 };

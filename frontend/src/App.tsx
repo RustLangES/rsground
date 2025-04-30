@@ -4,6 +4,7 @@ import "../public/fonts/inter.css"
 import { Component } from "solid-js";
 import { checkForAuth, interceptAuthCallback } from "@features/auth/utils";
 import { interpectProjectRoutes } from "@features/colab/utils";
+import { startReceivingSync } from "@features/editor/services";
 import { Panels } from "@features/panels/views";
 import { Sidebar } from "@features/sidebar/views";
 import { startWebsocket } from "@features/ws/services";
@@ -15,6 +16,7 @@ const App: Component = () => {
   checkForAuth();
   interpectProjectRoutes();
   startWebsocket();
+  startReceivingSync();
 
   return (
     <>

@@ -1,0 +1,73 @@
+@use "../styles/_mixins.sass" as *
+
+@mixin timer($light, $dark)
+    +themed_var(timer-color, $light, $dark)
+
+.animation_show
+  +animate(toast-show, forwards 300ms)
+    0%
+      scale: 0
+      opacity: 0
+
+    60%
+      scale: 1.05
+      opacity: 1
+
+    100%
+      scale: 1
+
+.animation_hide
+  +animate(toast-hide, forwards 300ms)
+    0%
+      scale: 1
+
+    40%
+      scale: 1.05
+      opacity: 1
+
+    100%
+      scale: 0.05
+      opacity: 0
+
+.container
+  --timer-color: inherit
+  --border-color: #000
+  --icon-color: var(--border-color)
+
+  .popup
+    +neobrutalism
+
+    background: var(--surface-background)
+    color: var(--surface-foreground)
+
+    padding: .5rem
+    border-radius: var(--radius-md)
+    border-color: var(--border-color)
+
+  & :global(.swal2-timer-progress-bar)
+    background: var(--timer-color)
+
+.container-debug
+  @extend .container
+  --border-color: var(--colors-secondary-300)
+  @include timer(var(--colors-secondary-500), var(--colors-secondary-300))
+
+.container-info
+  @extend .container
+  --icon-color: inherit
+  @include timer(var(--colors-primary-500), var(--colors-primary-300))
+
+.container-success
+  @extend .container
+  --border-color: var(--colors-success-300)
+  @include timer(var(--colors-success-500), var(--colors-success-300))
+
+.container-warn
+  @extend .container
+  --border-color: var(--colors-warn-300)
+  @include timer(var(--colors-warn-500), var(--colors-warn-300))
+
+.container-error
+  @extend .container
+  --border-color: var(--colors-error-300)
+  @include timer(var(--colors-error-500), var(--colors-error-300))

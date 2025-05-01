@@ -1,9 +1,10 @@
-import { For, getOwner, Index, runWithOwner } from "solid-js";
+import { For } from "solid-js";
 
+import { projectAccess } from "@features/colab/stores";
 import { ContextMenu } from "@features/context-menu/views";
 import { openFile } from "@features/editor/services";
 import { onWsMessage } from "@features/ws/services";
-import { ServerMessageKind } from "@features/ws/types";
+import { AccessLevel, ServerMessageKind } from "@features/ws/types";
 import { FolderPlusIcon } from "@icons/FolderPlus";
 import { FolderMinusIcon } from "@icons/FolderMinus";
 import { BrandsRustIcon } from "@icons/BrandsRust";
@@ -21,6 +22,7 @@ function RenderFolder(props: { data: FolderNode }) {
       <details>
         <ContextMenu
           as="summary"
+          useRightClick={projectAccess() === AccessLevel.Editor}
           options={{
             [props.data.name]: { disabled: true },
             "Add File": {},
@@ -47,6 +49,7 @@ function RenderFile(props: { data: FileNode }) {
   return (
     <ContextMenu
       as="li"
+      useRightClick={projectAccess() === AccessLevel.Editor}
       class={styles.entry}
       options={{
         [props.data.filename]: { disabled: true },
@@ -83,6 +86,7 @@ export function FileExplorer() {
   return (
     <ContextMenu
       as="ul"
+      useRightClick={projectAccess() === AccessLevel.Editor}
       class={styles.container}
       options={{
         "Add File": {

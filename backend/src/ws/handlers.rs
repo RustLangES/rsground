@@ -181,6 +181,31 @@ impl RgWebsocket {
 
                 Err(ServerMessageError::None)
             }
+
+            ClientMessage::SyncCursor { file, cursors } => {
+                self.access.need_editor()?;
+
+                let project = manager.get_project_mut(self.project_id)?;
+
+                let doc = project.get_file_mut(&file).ok_or_else(|| {
+                    log::error!("File {file:?} not found in {:?}", self.project_id);
+                    ServerMessageError::FileNotFound(file.clone())
+                })?;
+
+                if cursors.is_empty() {
+                    doc.cursors.remove(&self.user_info.id);
+                } else {
+                    doc.cursors.insert(self.user_info.id.clone(), cursors);
+                }
+
+                let cursors = doc.cursors.clone();
+
+                _ = project
+                    .broadcast
+                    .send(ServerMessage::SyncCursors { file, cursors });
+
+                Err(ServerMessageError::None)
+            }
             ClientMessage::SyncFiles => {
                 self.access.need_read()?;
 

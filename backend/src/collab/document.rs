@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::Serialize;
 use tokio::sync::Notify;
 
@@ -10,6 +12,7 @@ pub struct Document {
     /// Users can subscribe to document events
     pub notify: Notify,
     pub history: Vec<Action>,
+    pub cursors: HashMap<String, Vec<(usize, usize)>>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -33,6 +36,7 @@ impl Document {
             buffer: String::new(),
             notify: Notify::new(),
             history: Vec::new(),
+            cursors: HashMap::new(),
         }
     }
 
@@ -41,6 +45,7 @@ impl Document {
             buffer,
             notify: Notify::new(),
             history: Vec::new(),
+            cursors: HashMap::new(),
         }
     }
 
@@ -49,6 +54,7 @@ impl Document {
             buffer: self.buffer.clone(),
             history: self.history.clone(),
             notify: Notify::new(),
+            cursors: HashMap::new(),
         }
     }
 

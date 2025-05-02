@@ -24,6 +24,10 @@ pub enum ClientMessage {
         revision: usize,
         actions: Vec<Action>,
     },
+    SyncCursor {
+        file: String,
+        cursors: Vec<(usize, usize)>,
+    },
     SyncFiles,
 }
 
@@ -48,6 +52,10 @@ pub enum ServerMessage {
         file: String,
         revision: usize,
         actions: Vec<Action>,
+    },
+    SyncCursors {
+        file: String,
+        cursors: HashMap<String, Vec<(usize, usize)>>,
     },
     Welcome {
         session_id: String,

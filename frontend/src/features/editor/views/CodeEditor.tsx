@@ -4,6 +4,7 @@ import {
   createSignal,
   observable,
   onCleanup,
+  untrack,
 } from "solid-js";
 import { CodeMirror } from "@solid-codemirror/codemirror";
 import { EditorView } from "codemirror";
@@ -33,6 +34,7 @@ import styles from "./CodeEditor.module.sass";
 import { Cursor } from "../types";
 import { onWsMessage } from "@features/ws/services";
 import { unwrap } from "solid-js/store";
+import { authInfo } from "@features/auth/stores";
 
 export interface CodeEditorProps {
   /** full-path of the target file to edit */
@@ -56,21 +58,12 @@ export function CodeEditor(props: CodeEditorProps) {
     setEditingFiles(file.data.fullPath, "editor_open", false);
   });
 
-  onWsMessage(ServerMessageKind.Sync, (msg) => {
+  onWsMessage(ServerMessageKind.SyncCursors, (msg) => {
     if (msg.file !== file_path) return;
 
-    const stored_cursors = unwrap(cursorsFiles)[file_path];
-    const last_sync = unwrap(editingFiles)[file_path].synced_revision;
-    const desyncronized_history = msg.actions.slice(last_sync);
-
     batch(() => {
-      for (const [user, user_cursors] of Object.entries(stored_cursors)) {
-        for (const [idx, cursor] of user_cursors.entries()) {
-          setCursorsFiles(file_path, user, idx, {
-            from: transformIndex(cursor.from, "", desyncronized_history),
-            to: transformIndex(cursor.to, "", desyncronized_history),
-          });
-        }
+      for (const [user, cursors] of Object.entries(msg.cursors)) {
+        setCursorsFiles(file_path, user, cursors.map(Cursor.from));
       }
     });
   });
@@ -83,13 +76,18 @@ export function CodeEditor(props: CodeEditorProps) {
     let collected_cursors = [];
 
     for (const [user, user_cursors] of Object.entries(stored_cursors)) {
+      if (user === untrack(authInfo)?.id) continue;
+
       for (const cursor of user_cursors) {
         collected_cursors.push(Cursor.toDecoration(cursor, user, styles));
+        collected_cursors.push(
+          Cursor.toDecoration({ from: cursor.to, to: cursor.to }, user, styles),
+        );
       }
     }
 
     const decorations = EditorView.decorations.of(
-      Decoration.set(collected_cursors),
+      Decoration.set(collected_cursors, true),
     );
     editor().dispatch({ effects: cursors.reconfigure(decorations) });
   });

@@ -42,6 +42,11 @@ function anyEventHandler(file: FileNode) {
 
     setCursorsFiles(file.fullPath, untrack(authInfo)?.id, cursors);
 
+    sendMessage(ClientMessageKind.SyncCursor, {
+      file: file.fullPath,
+      cursors: cursors.map(Cursor.into_rscursor)
+    })
+
     console.log("CURSORS", cursors);
   };
 

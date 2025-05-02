@@ -1,4 +1,4 @@
-import { OtOperation } from "@features/editor/types";
+import { OtOperation, RsCursor } from "@features/editor/types";
 import { AccessLevel } from "./access";
 
 export enum ServerMessageKind {
@@ -7,6 +7,7 @@ export enum ServerMessageKind {
   UpdateAccess = "update_access",
   UserConnected = "user_connected",
   Sync = "sync",
+  SyncCursors = "sync_cursors",
   Welcome = "welcome",
 }
 
@@ -33,6 +34,11 @@ export type ServerMessage<S extends ServerMessageKind = ServerMessageKind> = {
     file: string;
     revision: number;
     actions: Array<OtOperation>;
+  };
+  [ServerMessageKind.SyncCursors]: {
+    action: ServerMessageKind.SyncCursors;
+    file: string;
+    cursors: Record<string, Array<RsCursor>>;
   };
   [ServerMessageKind.Welcome]: {
     action: ServerMessageKind.Welcome;

@@ -24,6 +24,10 @@ export namespace Cursor {
     }
   }
 
+  export function into_rscursor(self: Cursor): RsCursor {
+    return [self.from, self.to];
+  }
+
   export function toDecoration(
     self: Cursor,
     owner: string,

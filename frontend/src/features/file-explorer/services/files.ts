@@ -1,7 +1,7 @@
 import { batch } from "solid-js";
 import { unwrap } from "solid-js/store";
 
-import { setEditingFiles, setSyncFiles } from "@features/editor/stores";
+import { setCursorsFiles, setEditingFiles, setSyncFiles } from "@features/editor/stores";
 import { sendMessage } from "@features/ws/services";
 import { ClientMessageKind, DocumentInfo } from "@features/ws/types";
 
@@ -20,6 +20,7 @@ export function syncFiles(files: Record<string, DocumentInfo>) {
         synced_revision: doc.revision,
         editor_open: false,
       });
+      setCursorsFiles(path, {});
     }
 
     const nodes = mergeFiles(Object.keys(files), unwrap(fileExplorer).nodes);

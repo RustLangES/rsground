@@ -12,10 +12,11 @@ import {
   ServerMessageKind,
 } from "@features/ws/types";
 
-import { OtOperation, OtOperationKind } from "../types";
-import { editingFiles, setEditingFiles, setSyncFiles } from "../stores";
+import { Cursor, OtOperation, OtOperationKind } from "../types";
+import { editingFiles, setCursorsFiles, setEditingFiles, setSyncFiles } from "../stores";
 import { optimizeOps } from "./optimizeOps";
 import { transformIndex } from "./transformIndex";
+import { authInfo } from "@features/auth/stores";
 
 const ownerAnnotation = Annotation.define<string>();
 
@@ -37,11 +38,9 @@ function anyEventHandler(file: FileNode) {
     if (lastCursors && selection.eq(lastCursors)) return;
     lastCursors = selection;
 
-    let cursors = selection.ranges.map((value) => ({
-      from: value.from,
-      to: value.to,
-      head: value.head,
-    }));
+    let cursors = selection.ranges.map(Cursor.from);
+
+    setCursorsFiles(file.fullPath, untrack(authInfo)?.id, cursors);
 
     console.log("CURSORS", cursors);
   };

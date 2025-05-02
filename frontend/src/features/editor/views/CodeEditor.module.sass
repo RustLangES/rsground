@@ -1,5 +1,28 @@
 @use "../../../styles/mixins" as *
 
+.colored_selection
+  $hue: var(--hue)
+  position: relative
+  background: hsla($hue, 30%, 50%, 50%)
+
+  &::before, &::after
+    content: ""
+    position: absolute
+    width: 2px
+    height: 100%
+    background: hsla($hue, 100%, 50%, 70%)
+
+.colored_cursor
+  $hue: var(--hue)
+  position: relative
+  &::before
+    content: ""
+    position: absolute
+    width: 2px
+    height: 100%
+    background: hsla($hue, 50%, 50%, 70%)
+    transform: translateX(-50%)
+
 .container
   padding: 0.25rem 0
   color: var(--surface-foreground)
@@ -16,6 +39,9 @@
 
   :global(.cm-gutterElement)
     padding-left: 0.5rem !important
+
+  :global(.cm-line)
+    padding: 0
 
   :global(.cm-activeLineGutter),
   :global(.cm-activeLine),

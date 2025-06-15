@@ -61,7 +61,12 @@ onWsMessage(ServerMessageKind.ProjectConfig, (msg) => {
 });
 
 onWsMessage(ServerMessageKind.RequestAccess, (msg) => {
-  setProjectInfo("requests", msg.user_id, msg.user_name);
+  showToast("info", {
+    titleText: `${msg.user_name} is requesting access`,
+    timer: 5_000,
+  }).then(() => {
+    setProjectInfo("requests", msg.user_id, msg.user_name);
+  });
 });
 
 export function setProject(project: ProjectInfo, shouldFork: boolean) {

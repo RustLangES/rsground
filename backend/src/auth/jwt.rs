@@ -70,6 +70,6 @@ pub fn get_auth_token(req: &HttpRequest) -> Option<&str> {
 }
 
 pub fn get_user_info(req: &HttpRequest) -> Result<RgUserData, HttpErrors> {
-    let token = get_auth_token(&req).ok_or_else(|| HttpErrors::NoTokenProvided)?;
+    let token = get_auth_token(req).ok_or_else(|| HttpErrors::NoTokenProvided)?;
     decode(token).ok_or(HttpErrors::InvalidJWT)
 }

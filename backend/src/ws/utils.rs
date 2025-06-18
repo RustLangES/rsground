@@ -2,9 +2,9 @@ use actix_web::HttpRequest;
 
 use crate::http_errors::HttpErrors;
 
-pub fn parse_protocol_header(
-    req: &HttpRequest,
-) -> Result<(Vec<String>, Vec<(String, String)>), HttpErrors> {
+pub(super) type KeyValueVec = Vec<(String, String)>;
+
+pub fn parse_protocol_header(req: &HttpRequest) -> Result<(Vec<String>, KeyValueVec), HttpErrors> {
     let mut key_value: Vec<(String, String)> = vec![];
     let mut protocols: Vec<String> = vec![];
     let Some(header) = req.headers().get("sec-websocket-protocol") else {
@@ -12,12 +12,12 @@ pub fn parse_protocol_header(
     };
     let header = header
         .to_str()
-        .map_err(|_| return HttpErrors::NoTokenProvided)?
+        .map_err(|_| HttpErrors::NoTokenProvided)?
         .chars()
         .filter(|c| !c.is_whitespace())
         .collect::<String>();
 
-    let elements = header.splitn(2, ",").into_iter().collect::<Vec<&str>>();
+    let elements = header.splitn(2, ",").collect::<Vec<&str>>();
 
     for elem in elements {
         let value = elem.splitn(2, ".").collect::<Vec<&str>>();
@@ -29,5 +29,5 @@ pub fn parse_protocol_header(
         }
     }
 
-    return Ok((protocols, key_value));
+    Ok((protocols, key_value))
 }

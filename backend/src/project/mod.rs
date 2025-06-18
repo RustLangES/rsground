@@ -1,3 +1,4 @@
+#[allow(clippy::module_inception)]
 mod project;
 mod project_access;
 mod project_manager;

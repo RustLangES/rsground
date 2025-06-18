@@ -30,7 +30,7 @@ impl Runner {
         temp_home
     }
 
-    fn create_container(temp_home: &PathBuf) -> Container {
+    fn create_container(temp_home: &str) -> Container {
         Container::new()
             .hostname("rsground")
             .rootfs(concat!(env!("CARGO_MANIFEST_DIR"), "/lxc_rootfs"))
@@ -39,7 +39,7 @@ impl Runner {
             .procfsmount("/proc")
             .uidmap(1001)
             .gidmap(100)
-            .bindmount_rw(temp_home.to_str().unwrap(), "/home")
+            .bindmount_rw(temp_home, "/home")
             // FIXME: This needs to set resource limit
             // .setrlimit(hakoniwa::Rlimit::*, soft_limit, hard_limit)
             .clone()
@@ -47,7 +47,7 @@ impl Runner {
 
     pub async fn new() -> Result<Self, ()> {
         let temp_home = Self::create_home().await;
-        let container = Self::create_container(&temp_home);
+        let container = Self::create_container(temp_home.to_str().unwrap());
 
         Ok(Self {
             container,

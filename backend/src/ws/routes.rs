@@ -8,7 +8,9 @@ use crate::state::AppState;
 use crate::ws::utils::parse_protocol_header;
 use crate::ws::websocket::RgWebsocket;
 
-fn get_element<'a>(key_val: &'a Vec<(String, String)>, target: &str) -> Option<&'a String> {
+use super::utils::KeyValueVec;
+
+fn get_element<'a>(key_val: &'a KeyValueVec, target: &str) -> Option<&'a String> {
     key_val
         .iter()
         .find_map(|(key, val)| (key == target).then_some(val))
@@ -31,7 +33,7 @@ async fn websocket(
     let user_info = jwt::decode(auth).ok_or(HttpErrors::InvalidJWT)?;
 
     let app_state = data.get_ref().clone();
-    let ws = RgWebsocket::join_project(app_state, user_info, *project_id, password)?;
+    let ws = RgWebsocket::join_project(app_state, user_info, *project_id, password).await?;
 
     let (response, session, stream) =
         actix_ws::handle(&req, stream).map_err(HttpErrors::WebsocketStart)?;

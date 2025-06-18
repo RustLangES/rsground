@@ -453,6 +453,7 @@ dependencies = [
  "actix-ws",
  "actix_error_proc",
  "awc",
+ "bytecount",
  "chrono",
  "dotenv",
  "env_logger",
@@ -463,6 +464,8 @@ dependencies = [
  "log",
  "oauth2",
  "once_cell",
+ "operational-transform",
+ "pin-project-lite",
  "reqwest 0.12.15",
  "rsground-runner",
  "serde",
@@ -572,6 +575,12 @@ name = "bumpalo"
 version = "3.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1628fb46dfa0b37568d12e5edd512553eccf6a22a78e8bde00bb4aed84d5bdbf"
+
+[[package]]
+name = "bytecount"
+version = "0.6.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "175812e0be2bccb6abe50bb8d566126198344f707e304f45c648fd8f2cc0365e"
 
 [[package]]
 name = "bytes"
@@ -1740,6 +1749,16 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
+]
+
+[[package]]
+name = "operational-transform"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fcdc542261d37288fd18ccb2eb1fdf333d8d10d12cce21d3f586d6e74a5511df"
+dependencies = [
+ "bytecount",
+ "serde",
 ]
 
 [[package]]

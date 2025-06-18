@@ -1,22 +1,25 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
+use futures::StreamExt;
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
 use crate::auth::jwt::RgUserData;
 use crate::collab::{Document, DocumentInfo};
 use crate::http_errors::HttpErrors;
+use crate::utils::{ArcStr, AsyncInto, ToStream, EMPTY_STR};
 use crate::ws::messages::ServerMessage;
 
 use super::AccessLevel;
 
 pub struct Project {
     pub id: Uuid,
-    pub name: String,
-    pub owner: String,
-    pub documents: HashMap<String, Document>,
-    pub allowed_users: HashMap<String, AccessLevel>,
-    pub requests: HashSet<String>,
+    pub name: ArcStr,
+    pub owner: ArcStr,
+    pub documents: HashMap<ArcStr, Arc<Document>>,
+    pub allowed_users: HashMap<ArcStr, AccessLevel>,
+    pub requests: HashSet<ArcStr>,
     pub is_public: bool,
     pub password: Option<String>,
     pub broadcast: broadcast::Sender<ServerMessage>,
@@ -26,8 +29,8 @@ impl Default for Project {
     fn default() -> Self {
         Self {
             id: Uuid::new_v4(),
-            name: String::new(),
-            owner: String::new(),
+            name: EMPTY_STR.clone(),
+            owner: EMPTY_STR.clone(),
             documents: HashMap::new(),
             allowed_users: HashMap::new(),
             requests: HashSet::new(),
@@ -39,9 +42,9 @@ impl Default for Project {
 }
 
 impl Project {
-    pub fn new(owner: String, name: impl Into<String>) -> Self {
+    pub fn new(owner: ArcStr, name: ArcStr) -> Self {
         Project {
-            name: name.into(),
+            name,
             owner,
             ..Default::default()
         }
@@ -56,46 +59,49 @@ impl Project {
         }
     }
 
-    pub fn permit_access(&mut self, user_id: String, access: AccessLevel) {
+    pub fn permit_access(&mut self, user_id: ArcStr, access: AccessLevel) {
         self.allowed_users.insert(user_id, access);
     }
 
-    pub fn get_file_mut(&mut self, file_name: &str) -> Option<&mut Document> {
-        self.documents.get_mut(file_name)
+    pub fn get_file(&mut self, file_name: &str) -> Option<Arc<Document>> {
+        self.documents.get(file_name).cloned()
     }
 
-    pub fn add_file(&mut self, path: impl Into<String>, document: Document) -> &mut Document {
-        let path: String = path.into();
-        self.documents.insert(path.clone(), document);
-
-        // SAFETY: just inserted above
-        unsafe { self.documents.get_mut(&path).unwrap_unchecked() }
+    pub fn add_file(&mut self, path: impl Into<ArcStr>, document: Document) -> Arc<Document> {
+        self.documents
+            .entry(path.into())
+            .insert_entry(document.into())
+            .get()
+            .clone()
     }
 
-    pub fn rm_file(&mut self, path: impl AsRef<str>) -> Option<Document> {
+    pub fn rm_file(&mut self, path: impl AsRef<str>) -> Option<Arc<Document>> {
         self.documents.remove(path.as_ref())
     }
 
     /// Get all file paths
-    pub fn get_files(&self) -> HashMap<String, DocumentInfo> {
-        self.documents
-            .iter()
-            .map(|(path, doc)| (path.clone(), doc.into()))
+    pub async fn get_files(&self) -> HashMap<ArcStr, DocumentInfo> {
+        (&self.documents)
+            .to_stream()
+            .map(async |(path, doc)| (path.clone(), doc.async_into().await))
+            .buffer_unordered(5)
             .collect()
+            .await
     }
 
-    pub fn fork(&self, owner: String) -> Project {
+    pub async fn fork(&self, owner: ArcStr) -> Project {
         let name = if self.name.ends_with(" (fork)") {
             self.name.clone()
         } else {
-            format!("{} (fork)", self.name)
+            format!("{} (fork)", self.name).as_str().into()
         };
 
-        let documents: HashMap<String, Document> = self
-            .documents
-            .iter()
-            .map(|(path, doc)| (path.clone(), doc.fork()))
-            .collect();
+        let documents = (&self.documents)
+            .to_stream()
+            .map(async |(path, doc)| (path.clone(), doc.fork().await.into()))
+            .buffer_unordered(5)
+            .collect::<HashMap<ArcStr, Arc<Document>>>()
+            .await;
 
         Project {
             name,
@@ -108,10 +114,10 @@ impl Project {
 
     pub fn join_project(
         &mut self,
-        user_id: &String,
+        user_id: ArcStr,
         password: Option<String>,
     ) -> Result<AccessLevel, HttpErrors> {
-        if let Some(access) = self.allowed_users.get(user_id) {
+        if let Some(access) = self.allowed_users.get(&user_id) {
             Ok(*access)
         } else if !self.is_public {
             Ok(AccessLevel::Queue)
@@ -120,10 +126,10 @@ impl Project {
                 return Err(HttpErrors::InvalidPassword);
             }
 
-            self.permit_access(user_id.clone(), AccessLevel::ReadOnly);
+            self.permit_access(user_id, AccessLevel::ReadOnly);
             Ok(AccessLevel::ReadOnly)
         } else {
-            self.permit_access(user_id.clone(), AccessLevel::ReadOnly);
+            self.permit_access(user_id, AccessLevel::ReadOnly);
             Ok(AccessLevel::ReadOnly)
         }
     }

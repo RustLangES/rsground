@@ -7,6 +7,7 @@ use crate::auth::jwt::RgUserData;
 use crate::http_errors::HttpErrors;
 use crate::project::AccessLevel;
 use crate::state::AppState;
+use crate::utils::ArcStr;
 
 use super::messages::ServerMessage;
 
@@ -15,28 +16,28 @@ pub struct RgWebsocket {
     pub access: AccessLevel,
     pub broadcast: broadcast::Receiver<ServerMessage>,
     pub project_id: Uuid,
-    pub session_id: String,
+    pub session_id: ArcStr,
     pub user_info: RgUserData,
 }
 
 impl RgWebsocket {
-    pub fn join_project(
+    pub async fn join_project(
         app_state: AppState,
         user_info: RgUserData,
         project_id: Uuid,
         password: Option<String>,
     ) -> Result<Self, HttpErrors> {
         let (broadcast, access) = {
-            let mut manager = app_state.get_manager();
-            let Ok(project) = manager.get_project_mut(project_id) else {
+            let Ok(project) = app_state.get_project(project_id).await else {
                 return Err(HttpErrors::ProjectDoesNotExist);
             };
+            let mut project = project.write().await;
 
             let broadcast = project.broadcast.clone();
 
             (
                 broadcast.subscribe(),
-                project.join_project(&user_info.id, password)?,
+                project.join_project(user_info.id.clone(), password)?,
             )
         };
 
@@ -46,7 +47,7 @@ impl RgWebsocket {
             user_info,
             project_id,
             access,
-            session_id: Uuid::new_v4().to_string(),
+            session_id: Uuid::new_v4().to_string().as_str().into(),
         };
 
         Ok(ws)

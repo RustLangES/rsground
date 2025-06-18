@@ -1,6 +1,11 @@
+use std::collections::HashMap;
+
 use actix_ws as ws;
+use futures::StreamExt as _;
 
 use crate::collab::Document;
+use crate::project::AccessLevel;
+use crate::utils::{ArcStr, ToStream};
 use crate::ws::messages::{ClientMessage, ServerMessage, ServerMessageError};
 use crate::ws::ws_ext::SessionExt;
 
@@ -31,36 +36,38 @@ impl RgWebsocket {
     }
 
     async fn compose_welcome(&self) -> Result<ServerMessage, ServerMessageError> {
-        let mut manager = self.app_state.get_manager();
-        let project = manager.get_project_mut(self.project_id)?;
+        let project = self.app_state.get_project(self.project_id).await?;
+        let project = project.read().await;
 
         _ = project.broadcast.send(ServerMessage::UserConnected {
             user_id: self.user_info.id.clone(),
             user_name: self.user_info.name.clone(),
         });
 
-        let files = project.get_files().clone();
-        let users = project
-            .allowed_users
-            .iter()
-            .filter_map(|(user, access)| {
+        let files = project.get_files().await;
+        let users = (&project.allowed_users)
+            .to_stream()
+            .filter_map(async |(user, access)| {
                 self.app_state
-                    .get_username(&user)
+                    .get_username(user)
+                    .await
                     .map(|username| (user.clone(), (username, *access)))
             })
-            .collect();
+            .collect::<HashMap<ArcStr, (ArcStr, AccessLevel)>>()
+            .await;
 
         let requests = if project.owner == self.user_info.id {
             Some(
-                project
-                    .requests
-                    .iter()
-                    .filter_map(|user| {
+                (&project.requests)
+                    .to_stream()
+                    .filter_map(async |user| {
                         self.app_state
-                            .get_username(&user)
+                            .get_username(user)
+                            .await
                             .map(|username| (user.clone(), username))
                     })
-                    .collect(),
+                    .collect::<HashMap<ArcStr, ArcStr>>()
+                    .await,
             )
         } else {
             None
@@ -84,16 +91,13 @@ impl RgWebsocket {
                     .await;
             }
             // Only update requests to owner
-            ServerMessage::RequestAccess { .. }
-                if self
-                    .app_state
-                    .get_manager()
-                    .get_project(&self.project_id)
-                    .is_some_and(|p| p.owner == self.user_info.id) =>
-            {
-                _ = ctx.text_json(&msg).await
+            ServerMessage::RequestAccess { .. } => {
+                if let Ok(p) = self.app_state.get_project(self.project_id).await {
+                    if p.read().await.owner == self.user_info.id {
+                        _ = ctx.text_json(&msg).await
+                    }
+                }
             }
-            ServerMessage::RequestAccess { .. } => {}
 
             _ if self.access.can_read() => _ = ctx.text_json(&msg).await,
             _ => {}
@@ -115,7 +119,7 @@ impl RgWebsocket {
 
                 match serde_json::from_str::<ClientMessage>(&text) {
                     Ok(client_msg) => {
-                        let msg = self.handle_client_message(&ctx, client_msg).await;
+                        let msg = self.handle_client_message(ctx, client_msg).await;
 
                         Self::handle_ws_response(ctx, msg).await;
                     }
@@ -144,15 +148,14 @@ impl RgWebsocket {
     ) -> Result<ServerMessage, ServerMessageError> {
         self.access.need_read()?;
 
-        let mut manager = self.app_state.get_manager();
-
         match msg {
             ClientMessage::Config {
                 name,
                 is_public,
                 password,
             } => {
-                let project = manager.get_project_mut(self.project_id)?;
+                let project = self.app_state.get_project(self.project_id).await?;
+                let mut project = project.write().await;
 
                 if project.owner != self.user_info.id {
                     return Err(ServerMessageError::None);
@@ -185,12 +188,13 @@ impl RgWebsocket {
             ClientMessage::FileCreate { file } => {
                 self.access.need_editor()?;
 
-                let project = manager.get_project_mut(self.project_id)?;
+                let project = self.app_state.get_project(self.project_id).await?;
+                let mut project = project.write().await;
 
                 project.add_file(file, Document::new());
 
                 let msg = ServerMessage::ProjectFiles {
-                    files: project.get_files(),
+                    files: project.get_files().await,
                 };
 
                 _ = project.broadcast.send(msg);
@@ -200,11 +204,12 @@ impl RgWebsocket {
             ClientMessage::FileDelete { file } => {
                 self.access.need_editor()?;
 
-                let project = manager.get_project_mut(self.project_id)?;
+                let project = self.app_state.get_project(self.project_id).await?;
+                let mut project = project.write().await;
 
-                if let Some(_) = project.rm_file(&file) {
+                if project.rm_file(&file).is_some() {
                     let msg = ServerMessage::ProjectFiles {
-                        files: project.get_files(),
+                        files: project.get_files().await,
                     };
 
                     _ = project.broadcast.send(msg);
@@ -215,7 +220,8 @@ impl RgWebsocket {
                 }
             }
             ClientMessage::PermitAccess { user_id, access } => {
-                let project = manager.get_project_mut(self.project_id)?;
+                let project = self.app_state.get_project(self.project_id).await?;
+                let mut project = project.write().await;
 
                 if project.owner != self.user_info.id {
                     return Err(ServerMessageError::NotOwner);
@@ -238,24 +244,24 @@ impl RgWebsocket {
             } => {
                 self.access.need_editor()?;
 
-                let project = manager.get_project_mut(self.project_id)?;
+                let project = self.app_state.get_project(self.project_id).await?;
+                let mut project = project.write().await;
 
-                let doc = project.get_file_mut(&file).ok_or_else(|| {
+                let doc = project.get_file(&file).ok_or_else(|| {
                     log::error!("File {file:?} not found in {:?}", self.project_id);
                     ServerMessageError::FileNotFound(file.clone())
                 })?;
 
-                doc.compose(revision, actions);
+                if let Err(err) = doc
+                    .compose(self.user_info.id.clone(), revision, actions)
+                    .await
+                {
+                    _ = project
+                        .broadcast
+                        .send(ServerMessage::Error { message: err })
+                }
 
-                dbg!(&doc.buffer);
-
-                let msg = ServerMessage::Sync {
-                    file,
-                    revision: doc.revision(),
-                    actions: doc.history.clone(),
-                };
-
-                _ = project.broadcast.send(msg);
+                dbg!(&doc.text().await);
 
                 Err(ServerMessageError::None)
             }
@@ -263,12 +269,15 @@ impl RgWebsocket {
             ClientMessage::SyncCursor { file, cursors } => {
                 self.access.need_editor()?;
 
-                let project = manager.get_project_mut(self.project_id)?;
+                let project = self.app_state.get_project(self.project_id).await?;
+                let mut project = project.write().await;
 
-                let doc = project.get_file_mut(&file).ok_or_else(|| {
+                let doc = project.get_file(&file).ok_or_else(|| {
                     log::error!("File {file:?} not found in {:?}", self.project_id);
                     ServerMessageError::FileNotFound(file.clone())
                 })?;
+
+                let mut doc = doc.state_mut().await;
 
                 if cursors.is_empty() {
                     doc.cursors.remove(&self.user_info.id);
@@ -287,10 +296,11 @@ impl RgWebsocket {
             ClientMessage::SyncFiles => {
                 self.access.need_read()?;
 
-                let project = manager.get_project_mut(self.project_id)?;
+                let project = self.app_state.get_project(self.project_id).await?;
+                let project = project.write().await;
 
                 Ok(ServerMessage::ProjectFiles {
-                    files: project.get_files().clone(),
+                    files: project.get_files().await,
                 })
             }
         }

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use actix_error_proc::{proof_route, HttpResult};
 use actix_web::{web, HttpRequest, HttpResponse};
+use futures::StreamExt as _;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -9,6 +10,7 @@ use crate::auth::jwt;
 use crate::http_errors::HttpErrors;
 use crate::project::AccessLevel;
 use crate::state::AppState;
+use crate::utils::{ArcStr, ToStream};
 
 #[proof_route(get("/project/{project_id}"))]
 pub async fn get_project(
@@ -26,12 +28,12 @@ pub async fn get_project(
 
     let user_info = jwt::get_user_info(&req)?;
 
-    let mut manager = app_state.get_manager();
-    let Ok(project) = manager.get_project_mut(project_id) else {
+    let Ok(project) = app_state.get_project(project_id).await else {
         return Err(HttpErrors::ProjectDoesNotExist);
     };
+    let mut project = project.write().await;
 
-    let access = project.join_project(&user_info.id, password)?;
+    let access = project.join_project(user_info.id.clone(), password)?;
 
     if !access.can_read() {
         project.add_request(&user_info);
@@ -44,15 +46,16 @@ pub async fn get_project(
         })));
     }
 
-    let users = project
-        .allowed_users
-        .iter()
-        .filter_map(|(user, access)| {
+    let users = (&project.allowed_users)
+        .to_stream()
+        .filter_map(async |(user, access)| {
             app_state
-                .get_username(&user)
-                .map(|username| (user, (username, access)))
+                .get_username(user)
+                .await
+                .map(|username| (user.clone(), (username, *access)))
         })
-        .collect::<HashMap<&String, (String, &AccessLevel)>>();
+        .collect::<HashMap<ArcStr, (ArcStr, AccessLevel)>>()
+        .await;
 
     Ok(HttpResponse::Ok().json(json!({
         "access": access,
@@ -68,7 +71,7 @@ pub async fn get_project(
 #[proof_route(post("/create/{name}"))]
 pub async fn create_project(
     app_state: web::Data<AppState>,
-    name: web::Path<String>,
+    name: web::Path<ArcStr>,
     req: HttpRequest,
 ) -> HttpResult<HttpErrors> {
     let app_state = app_state.into_inner();
@@ -76,10 +79,11 @@ pub async fn create_project(
 
     let user_info = jwt::get_user_info(&req)?;
 
-    let mut manager = app_state.get_manager();
+    let mut manager = app_state.get_manager().await;
     let project = manager.new_project(&user_info, name);
+    let mut project = project.write().await;
 
-    project.permit_access(user_info.id, AccessLevel::Editor);
+    project.permit_access(user_info.id.clone(), AccessLevel::Editor);
 
     Ok(HttpResponse::Created().json(json!({
         "id": project.id
@@ -97,20 +101,23 @@ pub async fn fork_project(
 
     let user_info = jwt::get_user_info(&req)?;
 
-    let mut manager = app_state.get_manager();
-    let Some(project) = manager.get_project(&project_id) else {
-        return Err(HttpErrors::ProjectDoesNotExist);
+    let forked_project = {
+        let Ok(project) = app_state.get_project(project_id).await else {
+            return Err(HttpErrors::ProjectDoesNotExist);
+        };
+        let project = project.read().await;
+
+        if !project.allowed_users.contains_key(&user_info.id) {
+            return Err(HttpErrors::NotAccessible);
+        }
+
+        project.fork(user_info.id.clone()).await
     };
 
-    if !project.allowed_users.contains_key(&user_info.id) {
-        return Err(HttpErrors::NotAccessible);
-    }
+    let project = app_state.get_manager().await.add_project(forked_project);
+    let mut project = project.write().await;
 
-    let forked_project = project.fork(user_info.id.clone());
-
-    let project = manager.add_project(forked_project);
-
-    project.permit_access(user_info.id, AccessLevel::Editor);
+    project.permit_access(user_info.id.clone(), AccessLevel::Editor);
 
     Ok(HttpResponse::Created().json(json!({
         "id": project.id

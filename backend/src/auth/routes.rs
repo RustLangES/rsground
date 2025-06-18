@@ -8,6 +8,7 @@ use crate::auth::jwt::RgUserData;
 use crate::auth::{github, jwt};
 use crate::http_errors::HttpErrors;
 use crate::state::AppState;
+use crate::utils::ArcStr;
 
 pub struct OAuthData {
     pub client: oauth2::basic::BasicClient,
@@ -61,10 +62,17 @@ async fn callback(
         .map_err(HttpErrors::GithubUserFetch)
         .inspect_err(|err| log::error!("{err}"))?;
 
-    let jwt =
-        RgUserData::new(github_user.login.clone(), github_user.login.clone(), false).encode()?;
+    let user_data = RgUserData::new(
+        github_user.login.as_str().into(),
+        github_user.login.as_str().into(),
+        false,
+    );
 
-    state.add_username(github_user.login.clone(), github_user.login.clone());
+    state
+        .add_username(user_data.id.clone(), user_data.name.clone())
+        .await;
+
+    let jwt = user_data.encode()?;
 
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "jwt": jwt,
@@ -87,9 +95,18 @@ async fn login_guest(
 ) -> HttpResult<HttpErrors> {
     let guest_name = &body.guest_name;
     let guest_uuid = Uuid::new_v4().to_string();
-    let jwt = RgUserData::new(guest_uuid.clone(), guest_name.clone(), true).encode()?;
 
-    state.add_username(guest_uuid.clone(), guest_name.clone());
+    let user_data = RgUserData::new(
+        guest_uuid.as_str().into(),
+        guest_name.as_str().into(),
+        false,
+    );
+
+    state
+        .add_username(user_data.id.clone(), user_data.name.clone())
+        .await;
+
+    let jwt = user_data.encode()?;
 
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "jwt": jwt,
@@ -100,7 +117,7 @@ async fn login_guest(
 }
 #[derive(Deserialize)]
 struct UpdateNameRequest {
-    new_name: String,
+    new_name: ArcStr,
 }
 
 #[proof_route(post("/auth/update"))]
@@ -118,9 +135,13 @@ async fn update_name(
     let uuid = token_data.id;
     let new_name = body.into_inner().new_name;
 
-    let jwt = RgUserData::new(uuid.clone(), new_name.clone(), true).encode()?;
+    let user_data = RgUserData::new(uuid.clone(), new_name.clone(), false);
 
-    state.add_username(uuid.clone(), new_name.clone());
+    state
+        .add_username(user_data.id.clone(), user_data.name.clone())
+        .await;
+
+    let jwt = user_data.encode()?;
 
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "jwt": jwt,

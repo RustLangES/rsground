@@ -1,37 +1,39 @@
 use std::collections::HashMap;
 
+use operational_transform::OperationSeq;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::collab::{Action, DocumentInfo};
+use crate::collab::{DocumentInfo, UserOperation};
 use crate::project::AccessLevel;
+use crate::utils::ArcStr;
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum ClientMessage {
     Config {
-        name: Option<String>,
+        name: Option<ArcStr>,
         is_public: Option<bool>,
         password: Option<String>,
     },
     FileCreate {
-        file: String,
+        file: ArcStr,
     },
     FileDelete {
-        file: String,
+        file: ArcStr,
     },
     PermitAccess {
-        user_id: String,
+        user_id: ArcStr,
         access: AccessLevel,
     },
     Sync {
-        file: String,
+        file: ArcStr,
         revision: usize,
-        actions: Vec<Action>,
+        actions: OperationSeq,
     },
     SyncCursor {
-        file: String,
-        cursors: Vec<(usize, usize)>,
+        file: ArcStr,
+        cursors: Vec<(u32, u32)>,
     },
     SyncFiles,
 }
@@ -43,41 +45,41 @@ pub enum ServerMessage {
         message: String,
     },
     ProjectConfig {
-        name: String,
+        name: ArcStr,
         is_public: bool,
         password: Option<String>,
     },
     ProjectFiles {
         /// List of all file paths
-        files: HashMap<String, DocumentInfo>,
+        files: HashMap<ArcStr, DocumentInfo>,
     },
     UpdateAccess {
         access: AccessLevel,
-        user_id: String,
+        user_id: ArcStr,
     },
     UserConnected {
-        user_id: String,
-        user_name: String,
+        user_id: ArcStr,
+        user_name: ArcStr,
     },
     RequestAccess {
-        user_id: String,
-        user_name: String,
+        user_id: ArcStr,
+        user_name: ArcStr,
     },
     Sync {
-        file: String,
+        file: ArcStr,
         revision: usize,
-        actions: Vec<Action>,
+        actions: Vec<UserOperation>,
     },
     SyncCursors {
-        file: String,
-        cursors: HashMap<String, Vec<(usize, usize)>>,
+        file: ArcStr,
+        cursors: HashMap<ArcStr, Vec<(u32, u32)>>,
     },
     Welcome {
-        session_id: String,
-        files: HashMap<String, DocumentInfo>,
-        users: HashMap<String, (String, AccessLevel)>,
+        session_id: ArcStr,
+        files: HashMap<ArcStr, DocumentInfo>,
+        users: HashMap<ArcStr, (ArcStr, AccessLevel)>,
         // Only for owner
-        requests: Option<HashMap<String, String>>,
+        requests: Option<HashMap<ArcStr, ArcStr>>,
     },
 }
 
@@ -87,7 +89,7 @@ pub enum ServerMessageError {
     None,
 
     #[error("File {0:?} not found")]
-    FileNotFound(String),
+    FileNotFound(ArcStr),
 
     #[error("You don't have read permission")]
     NotAccessible,

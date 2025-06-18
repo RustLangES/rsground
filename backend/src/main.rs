@@ -8,7 +8,7 @@ mod utils;
 mod ws;
 
 use std::collections::HashMap;
-use std::sync::{LazyLock, Mutex};
+use std::sync::LazyLock;
 
 use actix_cors::Cors;
 use actix_web::{web, App, HttpServer};
@@ -18,6 +18,7 @@ use auth::jwt::JWT_SECRET;
 use auth::routes::OAuthData;
 use project::ProjectManager;
 use state::AppState;
+use tokio::sync::Mutex;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

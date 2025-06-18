@@ -1,16 +1,10 @@
+use std::sync::Arc;
+
+use operational_transform::OperationSeq;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum Action {
-    Insertion {
-        from: usize,
-        text: String,
-        owner: String,
-    },
-    Deletion {
-        from: usize,
-        to: usize,
-        owner: String,
-    },
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UserOperation {
+    pub user_id: Arc<str>,
+    pub operation: OperationSeq,
 }

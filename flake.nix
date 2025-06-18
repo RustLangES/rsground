@@ -17,8 +17,11 @@
     fenix = fenix-pkg.packages.${system};
 
     toolchain = fenix.toolchainOf {
-      channel = "stable";
-      date = "2025-02-20";
+      channel = "1.85.0";
+      sha256 = "sha256-AJ6LX/Q/Er9kS15bn9iflkUwcgYqRQxiOIL2ToVAXaU=";
+    };
+    wasmToolchain = fenix.targets.wasm32-unknown-unknown.toolchainOf {
+      channel = "1.85.0";
       sha256 = "sha256-AJ6LX/Q/Er9kS15bn9iflkUwcgYqRQxiOIL2ToVAXaU=";
     };
 
@@ -27,7 +30,10 @@
     ];
 
     backendBuildInputs = with pkgs; [
-      (toolchain.withComponents ["rustc" "cargo" "rust-src"])
+      (fenix.combine [
+        (toolchain.withComponents ["rustc" "cargo" "rust-src" "clippy"])
+        wasmToolchain.rust-std
+      ])
 
       openssl
 
@@ -39,6 +45,8 @@
     frontendBuildInputs = with pkgs; [
       nodejs_22
       pnpm_10
+
+      wasm-pack
     ];
   in {
     devShells.${system}.default = pkgs.mkShell {
@@ -47,7 +55,7 @@
         ++ backendBuildInputs
         ++ frontendBuildInputs;
 
-      nativeBuildInputs = [ pkgs.pkg-config ];
+      nativeBuildInputs = [pkgs.pkg-config];
 
       LIBSECCOMP_LIB_PATH = "${lib.makeLibraryPath [pkgs.libseccomp]}";
       LD_LIBRARY_PATH = "${lib.makeLibraryPath [pkgs.libseccomp]}";

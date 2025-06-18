@@ -2,5 +2,9 @@
 members = ["backend", "backend/runner"]
 
 [workspace.dependencies]
+bytecount = "0.6"
+operational-transform = { version = "0.6", features = ["serde"] }
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0"
 thiserror = "1.0.63"
 tokio = { version = "1", features = ["full"] }

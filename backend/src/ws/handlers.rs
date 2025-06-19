@@ -303,7 +303,7 @@ impl RgWebsocket {
                 })?;
 
                 if let Err(err) = doc
-                    .compose(self.user_info.id.clone(), revision, actions)
+                    .compose(self.session_id.clone(), revision, actions)
                     .await
                 {
                     _ = project

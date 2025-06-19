@@ -45,21 +45,22 @@ impl RgWebsocket {
             user_name: self.user_info.name.clone(),
         });
 
-        self.sync_docs = project
-            .documents
-            .iter()
-            .map(|(k, v)| (k.clone(), (v.clone(), 0)))
-            .collect();
+        self.sync_docs = (&project.documents)
+            .to_stream()
+            .map(async |(k, v)| (k.clone(), (v.clone(), v.revision().await)))
+            .buffer_unordered(10)
+            .collect()
+            .await;
 
         let files = project.get_files().await;
 
         let users = (&project.allowed_users)
             .to_stream()
             .filter_map(async |(user, access)| {
-                self.app_state
-                    .get_username(user)
-                    .await
-                    .map(|username| (user.clone(), (username, *access)))
+                Some((
+                    user.clone(),
+                    (self.app_state.get_username(user).await?, *access),
+                ))
             })
             .collect::<HashMap<ArcStr, (ArcStr, AccessLevel)>>()
             .await;
@@ -69,10 +70,7 @@ impl RgWebsocket {
                 (&project.requests)
                     .to_stream()
                     .filter_map(async |user| {
-                        self.app_state
-                            .get_username(user)
-                            .await
-                            .map(|username| (user.clone(), username))
+                        Some((user.clone(), self.app_state.get_username(user).await?))
                     })
                     .collect::<HashMap<ArcStr, ArcStr>>()
                     .await,

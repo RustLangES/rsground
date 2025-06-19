@@ -1,5 +1,5 @@
 [workspace]
-members = ["backend", "backend/runner"]
+members = ["backend", "backend/runner", "frontend-wasm"]
 
 [workspace.dependencies]
 bytecount = "0.6"

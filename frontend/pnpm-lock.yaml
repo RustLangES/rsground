@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      frontend-wasm:
+        specifier: file:../frontend-wasm/pkg/
+        version: file:../frontend-wasm/pkg
       solid-js:
         specifier: ^1.9.0
         version: 1.9.5
@@ -959,6 +962,9 @@ packages:
   find-up@4.1.0:
     resolution: {integrity: sha512-PpOwAdQ/YlXQ2vj8a3h8IipDuYRi3wceVQQGYWxNINccq40Anw7BlsEXCMbt1Zt+OLA6Fq9suIpIWD0OsnISlw==}
     engines: {node: '>=8'}
+
+  frontend-wasm@file:../frontend-wasm/pkg:
+    resolution: {directory: ../frontend-wasm/pkg, type: directory}
 
   fs-extra@7.0.1:
     resolution: {integrity: sha512-YJDaCJZEnBmcbw13fvdAM9AwNOJwOzrE4pqMqBq5nFiEqXUqHwlK4B+3pUw6JNvfSPtX05xFHtYy/1ni01eGCw==}
@@ -2396,6 +2402,8 @@ snapshots:
     dependencies:
       locate-path: 5.0.0
       path-exists: 4.0.0
+
+  frontend-wasm@file:../frontend-wasm/pkg: {}
 
   fs-extra@7.0.1:
     dependencies:

@@ -465,7 +465,6 @@ dependencies = [
  "oauth2",
  "once_cell",
  "operational-transform",
- "pin-project-lite",
  "reqwest 0.12.15",
  "rsground-runner",
  "serde",
@@ -640,6 +639,16 @@ name = "colorchoice"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
+
+[[package]]
+name = "console_error_panic_hook"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a06aeb73f470f66dcdbf7223caeebb85984942f22f1adb2a088cf9668146bbbc"
+dependencies = [
+ "cfg-if",
+ "wasm-bindgen",
+]
 
 [[package]]
 name = "cookie"
@@ -875,6 +884,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e13624c2627564efccf4934284bdd98cbaa14e79b0b5a141218e507b3a823456"
 dependencies = [
  "percent-encoding",
+]
+
+[[package]]
+name = "frontend-wasm"
+version = "0.1.0"
+dependencies = [
+ "bytecount",
+ "console_error_panic_hook",
+ "js-sys",
+ "operational-transform",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
 ]
 
 [[package]]

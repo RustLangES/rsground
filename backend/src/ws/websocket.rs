@@ -1,23 +1,29 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use actix_ws as ws;
 use futures::StreamExt;
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
 use crate::auth::jwt::RgUserData;
+use crate::collab::Document;
 use crate::http_errors::HttpErrors;
 use crate::project::AccessLevel;
 use crate::state::AppState;
 use crate::utils::ArcStr;
 
-use super::messages::ServerMessage;
+use super::messages::{InternalMessage, ServerMessage};
 
 pub struct RgWebsocket {
     pub app_state: AppState,
     pub access: AccessLevel,
+    pub internal: broadcast::Receiver<InternalMessage>,
     pub broadcast: broadcast::Receiver<ServerMessage>,
     pub project_id: Uuid,
     pub session_id: ArcStr,
     pub user_info: RgUserData,
+    pub sync_docs: HashMap<ArcStr, (Arc<Document>, usize)>,
 }
 
 impl RgWebsocket {
@@ -27,27 +33,28 @@ impl RgWebsocket {
         project_id: Uuid,
         password: Option<String>,
     ) -> Result<Self, HttpErrors> {
-        let (broadcast, access) = {
+        let (internal, broadcast, access) = {
             let Ok(project) = app_state.get_project(project_id).await else {
                 return Err(HttpErrors::ProjectDoesNotExist);
             };
             let mut project = project.write().await;
 
-            let broadcast = project.broadcast.clone();
-
             (
-                broadcast.subscribe(),
+                project.internal.subscribe(),
+                project.broadcast.subscribe(),
                 project.join_project(user_info.id.clone(), password)?,
             )
         };
 
         let ws = Self {
+            access,
             app_state,
             broadcast,
-            user_info,
+            internal,
             project_id,
-            access,
+            sync_docs: Default::default(),
             session_id: Uuid::new_v4().to_string().as_str().into(),
+            user_info,
         };
 
         Ok(ws)
@@ -59,11 +66,10 @@ impl RgWebsocket {
 
             loop {
                 tokio::select! {
-                    msg = self.broadcast.recv() => {
-                        let Ok(msg) = msg else {
-                            break;
-                        };
-
+                    Ok(msg) = self.internal.recv() => {
+                        self.handle_internal(msg, &mut session).await;
+                    }
+                    Ok(msg) = self.broadcast.recv() => {
                         self.handle_broadcast(msg, &mut session).await;
                     },
                     msg = stream.next() => {

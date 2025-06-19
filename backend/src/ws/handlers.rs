@@ -9,6 +9,7 @@ use crate::utils::{ArcStr, ToStream};
 use crate::ws::messages::{ClientMessage, ServerMessage, ServerMessageError};
 use crate::ws::ws_ext::SessionExt;
 
+use super::messages::InternalMessage;
 use super::websocket::RgWebsocket;
 
 impl RgWebsocket {
@@ -26,7 +27,7 @@ impl RgWebsocket {
         _ = ctx.text_json(&response).await;
     }
 
-    pub async fn handle_welcome(&self, ctx: &mut ws::Session) {
+    pub async fn handle_welcome(&mut self, ctx: &mut ws::Session) {
         // Don't send welcome when is in queue
         if !self.access.can_read() {
             return;
@@ -35,7 +36,7 @@ impl RgWebsocket {
         Self::handle_ws_response(ctx, self.compose_welcome().await).await
     }
 
-    async fn compose_welcome(&self) -> Result<ServerMessage, ServerMessageError> {
+    async fn compose_welcome(&mut self) -> Result<ServerMessage, ServerMessageError> {
         let project = self.app_state.get_project(self.project_id).await?;
         let project = project.read().await;
 
@@ -44,7 +45,14 @@ impl RgWebsocket {
             user_name: self.user_info.name.clone(),
         });
 
+        self.sync_docs = project
+            .documents
+            .iter()
+            .map(|(k, v)| (k.clone(), (v.clone(), 0)))
+            .collect();
+
         let files = project.get_files().await;
+
         let users = (&project.allowed_users)
             .to_stream()
             .filter_map(async |(user, access)| {
@@ -79,6 +87,48 @@ impl RgWebsocket {
             users,
             requests,
         })
+    }
+
+    pub async fn handle_internal(&mut self, msg: InternalMessage, ctx: &mut ws::Session) {
+        // Don't send internal updates when is in queue
+        if !self.access.can_read() {
+            return;
+        }
+
+        Self::handle_ws_response(ctx, self.compose_internal(msg).await).await
+    }
+
+    async fn compose_internal(
+        &mut self,
+        msg: InternalMessage,
+    ) -> Result<ServerMessage, ServerMessageError> {
+        match msg {
+            InternalMessage::FileEdit { path } => {
+                let Some((doc, revision)) = self.sync_docs.get_mut(&path) else {
+                    return Err(ServerMessageError::FileNotFound(path));
+                };
+
+                if doc.revision().await > *revision {
+                    let (new_revision, actions) = doc.send_history(*revision).await;
+
+                    let msg = if let Some(actions) = actions {
+                        Ok(ServerMessage::Sync {
+                            file: path,
+                            revision: *revision,
+                            actions,
+                        })
+                    } else {
+                        Err(ServerMessageError::None)
+                    };
+
+                    *revision = new_revision;
+
+                    msg
+                } else {
+                    Err(ServerMessageError::None)
+                }
+            }
+        }
     }
 
     pub async fn handle_broadcast(&mut self, msg: ServerMessage, ctx: &mut ws::Session) {
@@ -262,6 +312,10 @@ impl RgWebsocket {
                 }
 
                 dbg!(&doc.text().await);
+
+                _ = project
+                    .internal
+                    .send(InternalMessage::FileEdit { path: file });
 
                 Err(ServerMessageError::None)
             }

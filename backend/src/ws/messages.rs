@@ -111,3 +111,8 @@ impl From<ServerMessageError> for ServerMessage {
         }
     }
 }
+
+#[derive(Clone)]
+pub enum InternalMessage {
+    FileEdit { path: ArcStr },
+}

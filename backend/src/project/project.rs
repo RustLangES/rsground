@@ -9,7 +9,7 @@ use crate::auth::jwt::RgUserData;
 use crate::collab::{Document, DocumentInfo};
 use crate::http_errors::HttpErrors;
 use crate::utils::{ArcStr, AsyncInto, ToStream, EMPTY_STR};
-use crate::ws::messages::ServerMessage;
+use crate::ws::messages::{InternalMessage, ServerMessage};
 
 use super::AccessLevel;
 
@@ -22,6 +22,7 @@ pub struct Project {
     pub requests: HashSet<ArcStr>,
     pub is_public: bool,
     pub password: Option<String>,
+    pub internal: broadcast::Sender<InternalMessage>,
     pub broadcast: broadcast::Sender<ServerMessage>,
 }
 
@@ -36,6 +37,7 @@ impl Default for Project {
             requests: HashSet::new(),
             is_public: true,
             password: None,
+            internal: broadcast::channel(u8::MAX as usize).0,
             broadcast: broadcast::channel(u8::MAX as usize).0,
         }
     }

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::atomic::AtomicBool;
 
 use operational_transform::OperationSeq;
 use serde::Serialize;
@@ -16,8 +15,6 @@ pub struct Document {
     state: RwLock<DocumentState>,
     /// Used to notify clients of new text operations.
     notify: Notify,
-    /// Set to true when the document is destroyed.
-    killed: AtomicBool,
 }
 
 #[derive(Debug, Default)]
@@ -80,6 +77,26 @@ impl Document {
 
     pub async fn state_mut(&self) -> RwLockWriteGuard<'_, DocumentState> {
         self.state.write().await
+    }
+
+    pub async fn send_history(&self, start: usize) -> (usize, Option<Vec<UserOperation>>) {
+        let operations = {
+            let state = self.state.read().await;
+            let len = state.operations.len();
+            if start < len {
+                state.operations[start..].to_owned()
+            } else {
+                Vec::new()
+            }
+        };
+        let num_ops = operations.len();
+        let revision = start + num_ops;
+
+        if num_ops > 0 {
+            (revision, Some(operations))
+        } else {
+            (revision, None)
+        }
     }
 
     /// Add actions to document history.

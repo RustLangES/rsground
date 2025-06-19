@@ -32,7 +32,7 @@
     "prettier": "^3.5.3",
     "sass": "^1.81.0",
     "solid-codemirror": "^2.3.1",
-    "solid-devtools": "^0.34.0",
+    "solid-devtools": "^0.34.2",
     "sweetalert2": "^11.19.1",
     "typescript": "^5.7.2",
     "vite": "^6.0.0",

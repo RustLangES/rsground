@@ -7,7 +7,6 @@ import { interpectProjectRoutes } from "@features/colab/utils";
 import { startReceivingSync } from "@features/editor/services";
 import { Panels } from "@features/panels/views";
 import { Sidebar } from "@features/sidebar/views";
-import { startWebsocket } from "@features/ws/services";
 
 import "@features/theme/stores"
 
@@ -15,7 +14,6 @@ const App: Component = () => {
   interceptAuthCallback();
   checkForAuth();
   interpectProjectRoutes();
-  startWebsocket();
   startReceivingSync();
 
   return (

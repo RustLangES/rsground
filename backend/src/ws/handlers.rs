@@ -126,6 +126,16 @@ impl RgWebsocket {
                     Err(ServerMessageError::None)
                 }
             }
+            InternalMessage::FileCreate { path, doc } => {
+                self.sync_docs.insert(path, (doc, 0));
+
+                Err(ServerMessageError::None)
+            }
+            InternalMessage::FileDelete { path } => {
+                self.sync_docs.remove(&path);
+
+                Err(ServerMessageError::None)
+            }
         }
     }
 
@@ -239,7 +249,12 @@ impl RgWebsocket {
                 let project = self.app_state.get_project(self.project_id).await?;
                 let mut project = project.write().await;
 
-                project.add_file(file, Document::new());
+                let new_doc = project.add_file(file.clone(), Document::new());
+
+                _ = project.internal.send(InternalMessage::FileCreate {
+                    path: file,
+                    doc: new_doc,
+                });
 
                 let msg = ServerMessage::ProjectFiles {
                     files: project.get_files().await,
@@ -259,6 +274,10 @@ impl RgWebsocket {
                     let msg = ServerMessage::ProjectFiles {
                         files: project.get_files().await,
                     };
+
+                    _ = project
+                        .internal
+                        .send(InternalMessage::FileDelete { path: file });
 
                     _ = project.broadcast.send(msg);
 

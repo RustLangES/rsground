@@ -36,7 +36,7 @@ export function startReceivingSync() {
 
     let content = unwrap(syncFiles)[msg.file];
 
-    if (content) {
+    if (content != null) {
       content = msg.actions.reduce(
         (content, action) =>
           applyOperationToString(

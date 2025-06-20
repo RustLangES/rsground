@@ -19,12 +19,7 @@ import {
   setSyncFiles,
 } from "../stores";
 import { unicodeLength } from "./unicodeLength";
-import {
-  applyOperationToView,
-  syncAnnotation,
-  syncAnnotationType,
-} from "./applyOperation";
-import { batch } from "solid-js";
+import { applyOperationToView, syncAnnotationType } from "./applyOperation";
 
 let outstanding: OpSeq | null = null;
 let accumulated_changes: OpSeq | null = null;
@@ -122,8 +117,6 @@ function anyEventHandler(file: FileNode) {
       file: file.fullPath,
       cursors: cursors.map(Cursor.into_rscursor),
     });
-
-    console.log("CURSORS", cursors);
   };
 
   const handleOps = (update: ViewUpdate) => {
@@ -181,7 +174,7 @@ function anyEventHandler(file: FileNode) {
       return;
     }
 
-    if (update.docChanged && update.changes.length) {
+    if (update.docChanged) {
       handleOps(update);
     }
 

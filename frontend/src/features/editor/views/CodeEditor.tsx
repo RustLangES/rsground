@@ -108,25 +108,7 @@ export function CodeEditor(props: CodeEditorProps) {
       extensions={[
         ...rustExtensions(styles),
         readOnly.of([]),
-        cursors.of(EditorView.decorations.of(Decoration.set(
-          [
-            Decoration.mark({
-              inclusive: true,
-              attributes: {
-                style: "--hue: 140",
-              },
-              class: styles.colored_selection,
-            }).range(0, 10),
-
-            Decoration.mark({
-              inclusive: true,
-              attributes: {
-                style: "--hue: 240",
-              },
-              class: styles.colored_cursor,
-            }).range(15, 15 + 1),
-          ],
-        ))),
+        cursors.of(EditorView.decorations.of(Decoration.set([]))),
         syncExtension(file.data),
       ]}
       onEditorMount={(editor) => {

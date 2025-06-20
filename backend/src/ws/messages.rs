@@ -1,10 +1,11 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use operational_transform::OperationSeq;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::collab::{DocumentInfo, UserOperation};
+use crate::collab::{Document, DocumentInfo, UserOperation};
 use crate::project::AccessLevel;
 use crate::utils::ArcStr;
 
@@ -115,4 +116,6 @@ impl From<ServerMessageError> for ServerMessage {
 #[derive(Clone)]
 pub enum InternalMessage {
     FileEdit { path: ArcStr },
+    FileCreate { path: ArcStr, doc: Arc<Document> },
+    FileDelete { path: ArcStr },
 }

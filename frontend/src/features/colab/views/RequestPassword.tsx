@@ -34,7 +34,9 @@ export function RequestPassword() {
           if (!password()) {
             setHint("Put some text :)");
           } else {
-            fetchProject(projectInfo.id, password()).then(setProject).catch(
+            fetchProject(projectInfo.id, password()).then((project) => {
+              setProject(project, false);
+            }).catch(
               (err) => {
                 if (
                   err instanceof Array && err[0] == 401 &&

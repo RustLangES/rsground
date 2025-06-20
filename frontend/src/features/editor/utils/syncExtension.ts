@@ -1,24 +1,33 @@
 import { untrack } from "solid-js/web";
+import { OpSeq } from "frontend-wasm";
 import { EditorView } from "codemirror";
-import { Annotation, EditorSelection } from "@codemirror/state";
+import { EditorSelection } from "@codemirror/state";
 import { ViewUpdate } from "@codemirror/view";
 
+import { authInfo } from "@features/auth/stores";
 import { FileNode } from "@features/file-explorer/types";
 import { onWsMessage, sendMessage } from "@features/ws/services";
 import { wsSessionId } from "@features/ws/stores";
+import { ClientMessageKind, ServerMessageKind } from "@features/ws/types";
+
+import { Cursor } from "../types";
 import {
-  ClientMessageKind,
-  ServerMessage,
-  ServerMessageKind,
-} from "@features/ws/types";
+  cursorsFiles,
+  editingFiles,
+  setCursorsFiles,
+  setEditingFiles,
+  setSyncFiles,
+} from "../stores";
+import { unicodeLength } from "./unicodeLength";
+import {
+  applyOperationToView,
+  syncAnnotation,
+  syncAnnotationType,
+} from "./applyOperation";
+import { batch } from "solid-js";
 
-import { Cursor, OtOperation, OtOperationKind } from "../types";
-import { editingFiles, setCursorsFiles, setEditingFiles, setSyncFiles } from "../stores";
-import { optimizeOps } from "./optimizeOps";
-import { transformIndex } from "./transformIndex";
-import { authInfo } from "@features/auth/stores";
-
-const ownerAnnotation = Annotation.define<string>();
+let outstanding: OpSeq | null = null;
+let accumulated_changes: OpSeq | null = null;
 
 export function syncExtension(file: FileNode) {
   return EditorView.updateListener.of(anyEventHandler(file));
@@ -27,7 +36,74 @@ export function syncExtension(file: FileNode) {
 export function syncExtensionListener(view: EditorView, file: string) {
   onWsMessage(ServerMessageKind.Sync, (msg) => {
     if (msg.file === file) {
-      receiveOps(view, file, msg);
+      const actual_revision = editingFiles[msg.file].synced_revision;
+
+      if (msg.revision > actual_revision) {
+        console.warn("History message has start greater than last operation.");
+        return;
+      }
+
+      let othersCursors = { ...cursorsFiles[file] };
+
+      let new_revision = actual_revision;
+      for (
+        let i = actual_revision - msg.revision;
+        i < msg.actions.length;
+        i++
+      ) {
+        let { user_id, operation } = msg.actions[i];
+        new_revision++;
+        if (user_id === untrack(wsSessionId)) {
+          if (outstanding === null) {
+            continue;
+          }
+
+          outstanding = accumulated_changes;
+          accumulated_changes = null;
+
+          if (outstanding) {
+            sendMessage(ClientMessageKind.Sync, {
+              file,
+              revision: new_revision,
+              actions: JSON.parse(outstanding.to_string()),
+            });
+          }
+        } else {
+          let opSeq = OpSeq.from_str(JSON.stringify(operation));
+
+          if (outstanding) {
+            const pair = outstanding.transform(opSeq)!;
+            outstanding = pair.first();
+            opSeq = pair.second();
+
+            if (accumulated_changes) {
+              const pair = accumulated_changes.transform(opSeq)!;
+              accumulated_changes = pair.first();
+              opSeq = pair.second();
+            }
+          }
+
+          applyOperationToView(view, opSeq);
+
+          const applyOp = (idx: number) =>
+            Math.min(opSeq.transform_index(idx), opSeq.target_len());
+
+          for (const [user, cursors] of Object.entries(othersCursors)) {
+            const newCursors: Cursor[] = cursors.map((cursor) => ({
+              from: applyOp(cursor.from),
+              to: applyOp(cursor.to),
+            }));
+
+            othersCursors[user] = newCursors;
+          }
+        }
+      }
+
+      console.log(othersCursors);
+      setCursorsFiles(file, othersCursors);
+
+      setSyncFiles(file, view.state.doc.toString());
+      setEditingFiles(msg.file, "synced_revision", new_revision);
     }
   });
 }
@@ -44,138 +120,73 @@ function anyEventHandler(file: FileNode) {
 
     sendMessage(ClientMessageKind.SyncCursor, {
       file: file.fullPath,
-      cursors: cursors.map(Cursor.into_rscursor)
-    })
+      cursors: cursors.map(Cursor.into_rscursor),
+    });
 
     console.log("CURSORS", cursors);
   };
 
-  let accumulated_changes: OtOperation[] = [];
+  const handleOps = (update: ViewUpdate) => {
+    let buffer = OpSeq.new();
+    const oldContent = update.startState.doc.toString();
+    const contentLength = unicodeLength(oldContent);
 
-  const handleOps = () => {
-    if (accumulated_changes.length === 0) return;
+    buffer.retain(contentLength);
 
-    // Prepare ops in the most compact form
-    const ops = sendableOps(accumulated_changes);
-    accumulated_changes = [];
-
-    if (ops.length === 0) return;
-
-    sendMessage(ClientMessageKind.Sync, {
-      file: file.fullPath,
-      revision: editingFiles[file.fullPath].synced_revision,
-      actions: ops,
-    });
-  };
-
-  const realEventHandler = (update: ViewUpdate) => {
-    setSyncFiles(file.fullPath, update.state.doc.toString());
-
-    handleOps();
-    if (update.selectionSet || update.focusChanged) {
-      handleCursor(update.state.selection);
-    }
-  };
-
-  let cb: NodeJS.Timeout;
-  return (update: ViewUpdate) => {
-    if (update.transactions.some((v) => !!v.annotation(ownerAnnotation))) {
-      return;
-    }
-    if (cb) clearTimeout(cb);
+    let offset = 0;
 
     update.changes.iterChanges(
       (fromA, toA, _fromB, _toB, insert) => {
         const content = insert.sliceString(0, insert.length, "\n");
 
-        // There're not early return because replacing text
-        // generate a delete and insert
-        if (fromA != toA) {
-          accumulated_changes.push(OtOperation.remove(fromA, toA));
-        }
+        fromA = buffer.transform_index(fromA);
+        toA = buffer.transform_index(toA);
 
-        if (insert.length !== 0) {
-          accumulated_changes.push(OtOperation.insert(fromA, content));
-        }
+        const initial = unicodeLength(oldContent.slice(0, fromA));
+        const deleted = unicodeLength(oldContent.slice(fromA, toA));
+        const restLength = contentLength + offset - initial - deleted;
+
+        const changeOp = OpSeq.new();
+        changeOp.retain(initial);
+        changeOp.delete(deleted);
+        changeOp.insert(content);
+        changeOp.retain(restLength);
+
+        buffer = buffer.compose(changeOp)!;
+        offset += changeOp.target_len() - changeOp.base_len();
       },
     );
 
-    cb = setTimeout(() => realEventHandler(update), 100);
+    if (buffer.is_noop()) return;
+
+    setSyncFiles(file.fullPath, update.state.doc.toString());
+
+    // If there's is no pending to receive messages
+    if (outstanding == null) {
+      sendMessage(ClientMessageKind.Sync, {
+        file: file.fullPath,
+        revision: editingFiles[file.fullPath].synced_revision,
+        actions: JSON.parse(buffer.to_string()),
+      });
+      outstanding = buffer;
+    } else if (accumulated_changes == null) {
+      accumulated_changes = buffer;
+    } else {
+      accumulated_changes = accumulated_changes.compose(buffer);
+    }
   };
-}
 
-let sended_ops: OtOperation[] = [];
-
-function sendableOps(ops: OtOperation[]): OtOperation[] {
-  let diff_idx = 0;
-
-  for (let idx = 0; idx < sended_ops.length; idx++) {
-    const op = ops[diff_idx];
-    const sended_op = sended_ops[idx];
-
-    if (OtOperation.equal(op, sended_op)) {
-      diff_idx++;
-    } else {
-      diff_idx = 0;
-    }
-  }
-
-  ops = ops.slice(diff_idx);
-
-  sended_ops = sended_ops.concat(ops);
-
-  ops = optimizeOps(ops);
-
-  return ops;
-}
-
-function receiveOps(
-  editor: EditorView,
-  file: string,
-  msg: ServerMessage<ServerMessageKind.Sync>,
-) {
-  const owner = untrack(wsSessionId);
-  const local_revision = editingFiles[file].synced_revision;
-  const desyncronized_history = msg.actions.slice(local_revision);
-  const me = untrack(wsSessionId);
-
-  setEditingFiles(file, "synced_revision", msg.revision);
-
-  const initialCursors = editor.state.selection.ranges;
-  const mainIndex = editor.state.selection.mainIndex;
-
-  for (const action of desyncronized_history) {
-    if (action.owner === me) {
-      continue;
+  return (update: ViewUpdate) => {
+    if (update.transactions.some((v) => v.annotation(syncAnnotationType))) {
+      return;
     }
 
-    const annotations = [ownerAnnotation.of(action.owner)];
-
-    if (action.kind === OtOperationKind.Insert) {
-      editor.dispatch({
-        annotations,
-        changes: { from: action.from, insert: action.text },
-      });
-    } else {
-      editor.dispatch({
-        annotations,
-        changes: { from: action.from, to: action.to },
-      });
+    if (update.docChanged && update.changes.length) {
+      handleOps(update);
     }
-  }
 
-  const newCursors = initialCursors.map((v) =>
-    EditorSelection.range(
-      transformIndex(v.anchor, owner, desyncronized_history),
-      transformIndex(v.head, owner, desyncronized_history),
-    )
-  );
-
-  editor.update([
-    editor.state.update({
-      selection: EditorSelection.create(newCursors, mainIndex),
-    }),
-  ]);
-
-  setSyncFiles(file, editor.state.doc.toString());
+    if (update.selectionSet || update.focusChanged) {
+      handleCursor(update.state.selection);
+    }
+  };
 }

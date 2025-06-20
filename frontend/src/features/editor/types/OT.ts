@@ -5,5 +5,6 @@ import { OpSeq } from "frontend-wasm";
 
 export type UserOperation = {
   user_id: string;
-  operation: OpSeq;
+  /** Serialized form of `OpSeq` */
+  operation: Array<number | string>;
 };

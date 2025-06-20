@@ -11,30 +11,23 @@ import { EditorView } from "codemirror";
 import { Decoration } from "@codemirror/view";
 import { Compartment, EditorState } from "@codemirror/state";
 
+import { authInfo } from "@features/auth/stores";
 import { projectAccess } from "@features/colab/stores";
 import { getNodeByPath } from "@features/file-explorer/stores";
 import { FileNodeKind } from "@features/file-explorer/types";
 import { AccessLevel, ServerMessageKind } from "@features/ws/types";
+import { onWsMessage } from "@features/ws/services";
 
-import {
-  rustExtensions,
-  syncExtension,
-  syncExtensionListener,
-  transformIndex,
-} from "../utils";
+import { rustExtensions, syncExtension, syncExtensionListener } from "../utils";
 import {
   cursorsFiles,
-  editingFiles,
   setCursorsFiles,
   setEditingFiles,
   syncFiles,
 } from "../stores";
+import { Cursor } from "../types";
 
 import styles from "./CodeEditor.module.sass";
-import { Cursor } from "../types";
-import { onWsMessage } from "@features/ws/services";
-import { unwrap } from "solid-js/store";
-import { authInfo } from "@features/auth/stores";
 
 export interface CodeEditorProps {
   /** full-path of the target file to edit */
@@ -74,14 +67,30 @@ export function CodeEditor(props: CodeEditorProps) {
     const stored_cursors = cursorsFiles[file.data.fullPath];
 
     let collected_cursors = [];
+    const max_length = editor().state.doc.length;
 
     for (const [user, user_cursors] of Object.entries(stored_cursors)) {
       if (user === untrack(authInfo)?.id) continue;
 
       for (const cursor of user_cursors) {
-        collected_cursors.push(Cursor.toDecoration(cursor, user, styles));
+        collected_cursors.push(Cursor.toDecoration(
+          {
+            from: Math.min(cursor.from, max_length),
+            to: Math.min(cursor.to, max_length),
+          },
+          user,
+          styles,
+        ));
+
         collected_cursors.push(
-          Cursor.toDecoration({ from: cursor.to, to: cursor.to }, user, styles),
+          Cursor.toDecoration(
+            {
+              from: Math.min(cursor.to, max_length),
+              to: Math.min(cursor.to, max_length),
+            },
+            user,
+            styles,
+          ),
         );
       }
     }

@@ -11,7 +11,8 @@ import {
   setSyncFiles,
   syncFiles,
 } from "../stores";
-import { OtOperationKind } from "../types";
+import { applyOperationToString } from "../utils";
+import { OpSeq } from "frontend-wasm";
 
 export async function openFile(filepath: string) {
   const id = `file:${filepath}`;
@@ -31,21 +32,21 @@ export function startReceivingSync() {
   onWsMessage(ServerMessageKind.Sync, (msg) => {
     if (unwrap(editingFiles)[msg.file].editor_open) return;
 
-    const local_revision = editingFiles[msg.file].synced_revision;
-    const desyncronized_history = msg.actions.slice(local_revision);
-
     setEditingFiles(msg.file, "synced_revision", msg.revision);
 
-    let content = unwrap(syncFiles)[msg.file] ?? "";
+    let content = unwrap(syncFiles)[msg.file];
 
-    for (const action of desyncronized_history) {
-      if (action.kind === OtOperationKind.Insert) {
-        content = content.slice(0, action.from) + action.text + content.slice(action.from);
-      } else {
-        content = content.slice(0, action.from) + content.slice(action.to);
-      }
+    if (content) {
+      content = msg.actions.reduce(
+        (content, action) =>
+          applyOperationToString(
+            content,
+            OpSeq.from_str(JSON.stringify(action.operation)),
+          ),
+        content,
+      );
     }
 
-    setSyncFiles(msg.file, content);
+    setSyncFiles(msg.file, content ?? "");
   });
 }

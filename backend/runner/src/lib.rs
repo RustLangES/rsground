@@ -170,27 +170,19 @@ impl Runner {
             tokio::task::spawn_blocking(move || child.wait())
         };
 
-        let (status, stdout, stderr) = tokio::join!(status, stdout, stderr);
+        let (status, stdout, stderr) =
+            tokio::try_join!(status, stdout, stderr).map_err(|join_error| {
+                return hakoniwa::Error::Unexpected(format!("Join error: {join_error}"));
+            })?;
 
         let status = status
             .inspect_err(|err| eprintln!("Join error: {err}"))
-            .map(|o| o.inspect_err(|err| eprintln!("Join error: {err}")).ok())
-            .ok()
-            .flatten()
             .unwrap_or(ExitStatus {
                 code: 126,
                 reason: "Cannot retrieve exit status".to_owned(),
                 exit_code: None,
                 rusage: None,
             });
-
-        let stdout = stdout
-            .inspect_err(|err| eprintln!("Join error: {err}"))
-            .unwrap_or_default();
-
-        let stderr = stderr
-            .inspect_err(|err| eprintln!("Join error: {err}"))
-            .unwrap_or_default();
 
         Ok((status, stdout, stderr))
     }

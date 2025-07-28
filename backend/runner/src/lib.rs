@@ -91,12 +91,12 @@ impl Runner {
     }
 
     pub async fn collect_output(cmd: &mut Command) -> Result<Output, hakoniwa::Error> {
-        async fn collect(stream: Option<AsyncOsReader>) -> Vec<u8> {
+        async fn collect(mut stream: AsyncOsReader) -> Vec<u8> {
             let mut buf = Vec::new();
 
-            let Some(mut stream) = stream else { return buf };
+            let bytes = stream.read_to_end(&mut buf).await;
 
-            _ = stream.read_to_end(&mut buf).await;
+            _ = dbg!(bytes);
 
             buf
         }
@@ -119,10 +119,10 @@ impl Runner {
     where
         Stdout: Default + Send + 'static,
         StdoutAsync: Future<Output = Stdout> + Send + 'static,
-        StdoutFn: FnOnce(Option<AsyncOsReader>) -> StdoutAsync,
+        StdoutFn: FnOnce(AsyncOsReader) -> StdoutAsync,
         Stderr: Default + Send + 'static,
         StderrAsync: Future<Output = Stderr> + Send + 'static,
-        StderrFn: FnOnce(Option<AsyncOsReader>) -> StderrAsync,
+        StderrFn: FnOnce(AsyncOsReader) -> StderrAsync,
     {
         let mut child = cmd
             .envs(BASE_ENV)
@@ -132,10 +132,18 @@ impl Runner {
             .stderr(hakoniwa::Stdio::MakePipe)
             .spawn()?;
 
-        let stdout = child.stdout.take().map(AsyncOsReader::from);
-        let stdout = tokio::spawn(stdout_fn(stdout));
-        let stderr = child.stderr.take().map(AsyncOsReader::from);
-        let stderr = tokio::spawn(stderr_fn(stderr));
+        let stdout = child
+            .stdout
+            .take()
+            .map(AsyncOsReader::from)
+            .map(stdout_fn)
+            .map_or_else(|| tokio::spawn(async { Stdout::default() }), tokio::spawn);
+        let stderr = child
+            .stderr
+            .take()
+            .map(AsyncOsReader::from)
+            .map(stderr_fn)
+            .map_or_else(|| tokio::spawn(async { Stderr::default() }), tokio::spawn);
 
         let status = if let Some(abort) = abort {
             tokio::spawn(async move { Ok(child.wait_or_abort(abort).await) })

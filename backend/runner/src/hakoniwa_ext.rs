@@ -1,7 +1,11 @@
+use std::future::Future;
+use std::time::Duration;
 use std::{io::Read, ops, os::fd::AsFd, ptr::read};
 
 use async_io::Async;
 use hakoniwa::{Child, ExitStatus};
+use nix::libc::pid_t;
+use nix::sys::signal::{self, Signal};
 use nix::{
     sys::wait::{self, WaitPidFlag, WaitStatus},
     unistd::Pid,
@@ -9,6 +13,7 @@ use nix::{
 
 pub trait HakoniwaChildExt {
     fn try_wait(&self) -> Option<ExitStatus>;
+    async fn wait_or_abort<A: Future + Unpin>(&self, abort: A) -> ExitStatus;
 }
 
 impl HakoniwaChildExt for Child {
@@ -35,6 +40,30 @@ impl HakoniwaChildExt for Child {
             Err(err) => {
                 println!("[ERROR] {err}");
                 None
+            }
+        }
+    }
+
+    async fn wait_or_abort<A: Future + Unpin>(&self, mut abort: A) -> ExitStatus {
+        let mut status_check_interval = tokio::time::interval(Duration::from_millis(100));
+        let child_pid = Pid::from_raw(self.id() as pid_t);
+
+        loop {
+            tokio::select! {
+            _ = status_check_interval.tick() => {
+                if let Some(status) = self.try_wait() {
+                    return status
+                }
+            }
+                _ = &mut abort => {
+                    _ = signal::kill(child_pid, Signal::SIGKILL);
+                    return ExitStatus {
+                        code: 137,
+                        reason: "Aborted".to_owned(),
+                        exit_code: None,
+                        rusage: None,
+                    };
+                },
             }
         }
     }

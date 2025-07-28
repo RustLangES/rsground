@@ -142,30 +142,8 @@ impl Runner {
         let stderr = child.stderr.take().map(AsyncOsReader::from);
         let stderr = tokio::spawn(stderr_fn(stderr));
 
-        let child_pid = Pid::from_raw(child.id() as pid_t);
-        let status = if let Some(mut abort) = abort {
-            tokio::spawn(async move {
-                let mut status_check_interval = tokio::time::interval(Duration::from_millis(100));
-
-                loop {
-                    tokio::select! {
-                        _ = status_check_interval.tick() => {
-                            if let Some(status) = child.try_wait() {
-                                return Ok(status)
-                            }
-                        }
-                        _ = &mut abort => {
-                            _ = signal::kill(child_pid, Signal::SIGKILL);
-                            return Ok(ExitStatus {
-                                code: 137,
-                                reason: "Aborted".to_owned(),
-                                exit_code: None,
-                                rusage: None,
-                            });
-                        },
-                    }
-                }
-            })
+        let status = if let Some(abort) = abort {
+            tokio::spawn(async move { Ok(child.wait_or_abort(abort).await) })
         } else {
             tokio::task::spawn_blocking(move || child.wait())
         };

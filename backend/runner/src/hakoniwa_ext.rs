@@ -1,6 +1,6 @@
 use std::future::Future;
 use std::time::Duration;
-use std::{io::Read, ops, os::fd::AsFd, ptr::read};
+use std::{io::Read, ops, os::fd::AsFd};
 
 use async_io::Async;
 use hakoniwa::{Child, ExitStatus};

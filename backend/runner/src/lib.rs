@@ -1,19 +1,14 @@
+#![allow(async_fn_in_trait)]
+
 pub mod error;
 pub mod hakoniwa_ext;
 
-use async_io::Async;
 use hakoniwa::{Child, Command, Container, ExitStatus, Output};
 use hakoniwa_ext::{AsyncOsReader, HakoniwaChildExt};
-use nix::libc::pid_t;
-use nix::sys::signal::{self, Signal};
-use nix::unistd::Pid;
 pub use os_pipe::{PipeReader, PipeWriter};
 use std::future::Future;
-use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 use tokio::sync::oneshot;
-use tokio::time::Interval;
 use tokio::{fs, io};
 
 pub const BASE_ENV: [(&str, &str); 3] = [

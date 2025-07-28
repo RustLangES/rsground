@@ -1,8 +1,10 @@
 #![allow(async_fn_in_trait)]
 
 pub mod error;
+pub mod futures_ext;
 pub mod hakoniwa_ext;
 
+use futures_ext::{FutureExt, FutureOption, OptionalFuture};
 use hakoniwa::{Child, Command, Container, ExitStatus, Output};
 use hakoniwa_ext::{AsyncOsReader, HakoniwaChildExt};
 pub use os_pipe::{PipeReader, PipeWriter};
@@ -119,10 +121,10 @@ impl Runner {
     where
         Stdout: Default + Send + 'static,
         StdoutAsync: Future<Output = Stdout> + Send + 'static,
-        StdoutFn: FnOnce(AsyncOsReader) -> StdoutAsync,
+        StdoutFn: Send + 'static + FnOnce(AsyncOsReader) -> StdoutAsync,
         Stderr: Default + Send + 'static,
         StderrAsync: Future<Output = Stderr> + Send + 'static,
-        StderrFn: FnOnce(AsyncOsReader) -> StderrAsync,
+        StderrFn: Send + 'static + FnOnce(AsyncOsReader) -> StderrAsync,
     {
         let mut child = cmd
             .envs(BASE_ENV)
@@ -137,16 +139,21 @@ impl Runner {
             .take()
             .map(AsyncOsReader::from)
             .map(stdout_fn)
-            .map_or_else(|| tokio::spawn(async { Stdout::default() }), tokio::spawn);
+            .as_fut()
+            .or_default()
+            .spawn();
+
         let stderr = child
             .stderr
             .take()
             .map(AsyncOsReader::from)
             .map(stderr_fn)
-            .map_or_else(|| tokio::spawn(async { Stderr::default() }), tokio::spawn);
+            .as_fut()
+            .or_default()
+            .spawn();
 
         let status = if let Some(abort) = abort {
-            tokio::spawn(async move { Ok(child.wait_or_abort(abort).await) })
+            tokio::spawn(async move { child.wait_or_abort(abort).wrap_fut(Ok).await })
         } else {
             tokio::task::spawn_blocking(move || child.wait())
         };

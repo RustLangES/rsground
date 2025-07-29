@@ -2,36 +2,40 @@ use std::future::Future;
 
 use tokio::task::JoinHandle;
 
+pub trait Optional<T> {
+    fn or_default(self) -> T
+    where
+        T: Default;
+}
+
+impl<T> Optional<T> for Option<T> {
+    fn or_default(self) -> T
+    where
+        T: Default,
+    {
+        self.unwrap_or_default()
+    }
+}
+
 pub trait OptionalFuture<T: Future> {
     fn as_fut(self) -> impl Future<Output = Option<T::Output>>;
 }
 
 impl<T: Future> OptionalFuture<T> for Option<T> {
     async fn as_fut(self) -> Option<T::Output> {
-        if let Some(fut) = self {
-            Some(fut.await)
-        } else {
-            None
+        match self {
+            Some(fut) => Some(fut.await),
+            None => None,
         }
     }
 }
 
-pub trait FutureOption<T> {
-    fn or_default(self) -> impl Future<Output = T>
-    where
-        T: Default;
-}
-
-impl<T, F: Future<Output = Option<T>>> FutureOption<T> for F {
-    async fn or_default(self) -> T
-    where
-        T: Default,
-    {
-        self.await.unwrap_or_default()
-    }
-}
-
 pub trait FutureExt: Future {
+    fn or_default<T>(self) -> impl Future<Output = T>
+    where
+        Self::Output: Optional<T>,
+        T: Default;
+
     fn spawn(self) -> JoinHandle<Self::Output>
     where
         Self: Send + 'static,
@@ -44,6 +48,14 @@ pub trait FutureExt: Future {
 }
 
 impl<F: Future> FutureExt for F {
+    async fn or_default<T>(self) -> T
+    where
+        Self::Output: Optional<T>,
+        T: Default,
+    {
+        self.await.or_default()
+    }
+
     fn spawn(self) -> JoinHandle<Self::Output>
     where
         Self: Send + 'static,

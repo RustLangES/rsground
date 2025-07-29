@@ -4,7 +4,7 @@ pub mod error;
 pub mod futures_ext;
 pub mod hakoniwa_ext;
 
-use futures_ext::{FutureExt, FutureOption, OptionalFuture};
+use futures_ext::{FutureExt, OptionalFuture};
 use hakoniwa::{Child, Command, Container, ExitStatus, Output};
 use hakoniwa_ext::{AsyncOsReader, HakoniwaChildExt};
 pub use os_pipe::{PipeReader, PipeWriter};

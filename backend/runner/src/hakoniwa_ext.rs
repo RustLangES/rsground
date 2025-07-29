@@ -13,6 +13,7 @@ use nix::{
 
 pub trait HakoniwaChildExt {
     fn try_wait(&self) -> Option<ExitStatus>;
+    async fn async_wait(&self) -> ExitStatus;
     async fn wait_or_abort<A: Future + Unpin>(&self, abort: A) -> ExitStatus;
 }
 
@@ -44,17 +45,27 @@ impl HakoniwaChildExt for Child {
         }
     }
 
-    async fn wait_or_abort<A: Future + Unpin>(&self, mut abort: A) -> ExitStatus {
+    async fn async_wait(&self) -> ExitStatus {
         let mut status_check_interval = tokio::time::interval(Duration::from_millis(100));
+
+        loop {
+            status_check_interval.tick().await;
+
+            if let Some(status) = self.try_wait() {
+                return status;
+            }
+        }
+    }
+
+    async fn wait_or_abort<A: Future + Unpin>(&self, mut abort: A) -> ExitStatus {
         let child_pid = Pid::from_raw(self.id() as pid_t);
+        let waiter = self.async_wait();
 
         loop {
             tokio::select! {
-            _ = status_check_interval.tick() => {
-                if let Some(status) = self.try_wait() {
+                status = waiter => {
                     return status
                 }
-            }
                 _ = &mut abort => {
                     _ = signal::kill(child_pid, Signal::SIGKILL);
                     return ExitStatus {

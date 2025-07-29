@@ -1,196 +1,66 @@
-use std::io::Read;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-use actix::{Actor, ActorResponse, Addr, Context, Handler, Message, WrapFuture};
-use rsground_runner::Runner;
-use tokio::sync::{broadcast, oneshot};
-use uuid::Uuid;
+use actix::{Actor, ActorFutureExt, AsyncContext, WrapFuture};
+use tokio::sync::{oneshot, Mutex};
 
-use crate::ws::messages::{OutputChannel, ServerMessage};
+pub type AbortSender = oneshot::Sender<()>;
+pub type AbortReceiver = oneshot::Receiver<()>;
+pub type SharedAbort = SharedExport<AbortSender>;
 
-pub type AbortNotify = Arc<Mutex<Option<oneshot::Sender<()>>>>;
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct SharedExport<T>(Arc<Mutex<Option<T>>>);
 
-#[derive(Clone)]
-pub struct ProjectExecuter {
-    pub project_id: Uuid,
-    pub broadcast: broadcast::Sender<ServerMessage>,
-    pub runner: Arc<Runner>,
-    pub execution: AbortNotify,
-}
-
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct Execute;
-
-impl ProjectExecuter {
-    pub async fn start(
-        project_id: Uuid,
-        broadcast: broadcast::Sender<ServerMessage>,
-    ) -> (Arc<Runner>, AbortNotify, Addr<Self>) {
-        let runner = Arc::new(Runner::new().await.expect("Cannot start runner"));
-        let execution: AbortNotify = Mutex::new(None).into();
-
-        let project_executer = Self {
-            project_id,
-            broadcast,
-            runner: runner.clone(),
-            execution: execution.clone(),
-        };
-
-        (runner, execution, project_executer.start())
+impl<T> Clone for SharedExport<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
     }
 }
 
-impl Actor for ProjectExecuter {
-    type Context = Context<ProjectExecuter>;
-}
-
-impl Handler<Execute> for ProjectExecuter {
-    type Result = ActorResponse<Self, <Execute as actix::Message>::Result>;
-
-    fn handle(&mut self, _: Execute, _: &mut Self::Context) -> Self::Result {
-        let cloned = self.clone();
-
-        ActorResponse::r#async(
-            async move {
-                _ = execute(cloned).await;
-            }
-            .into_actor(self),
-        )
+impl<T> Default for SharedExport<T> {
+    fn default() -> Self {
+        Self(Mutex::new(None).into())
     }
 }
 
-async fn execute(project: ProjectExecuter) -> Result<(), ()> {
-    let project_id = project.project_id;
-    let broadcast = project.broadcast;
-    let runner = project.runner;
-
-    let abort = {
-        let (tx, rx) = oneshot::channel::<()>();
-
-        *project.execution.lock().unwrap() = Some(tx);
-
-        rx
-    };
-
-    macro_rules! stream {
-        ($channel:expr) => {{
-            let broadcast = broadcast.clone();
-
-            async move |stdout| {
-                let Some(mut stdout) = stdout else { return };
-
-                let buf = &mut [0; 2048];
-
-                loop {
-                    let Ok(size) = stdout.read(buf).await else {
-                        log::trace!("Cannot read");
-                        break;
-                    };
-
-                    if size == 0 {
-                        break;
-                    }
-
-                    // log::trace!(concat!(stringify!($channel), ": {:x?}"), &buf[..size]);
-                    _ = broadcast.send(ServerMessage::SyncOutput {
-                        channel: $channel,
-                        buf: buf[..size].to_vec(),
-                    });
-                }
-            }
-        }};
+impl<T> SharedExport<T> {
+    pub async fn set_value(&self, val: T) {
+        self.0.lock().await.replace(val);
     }
 
-    log::trace!("Execute started for {project_id}");
-
-    _ = broadcast.send(ServerMessage::SyncOutputStart);
-
-    log::trace!("[Execute] compiling in {project_id}");
-
-    let (status, _, _) = Runner::stream_output(
-        &mut runner.cmd_rustc(["--color", "always", "/home/main.rs"]),
-        stream!(OutputChannel::Stdout),
-        stream!(OutputChannel::Stderr),
-        Some(abort),
-    )
-    .await
-    .map_err(|err| {
-        log::error!("[Execute] compilation failed in {project_id}: {err}");
-        _ = broadcast.send(ServerMessage::SyncOutput {
-            channel: OutputChannel::Stderr,
-            buf: err.to_string().into_bytes(),
-        });
-        _ = broadcast.send(ServerMessage::SyncOutputEnd { exit_code: 126 });
-    })?;
-
-    if !status.success() {
-        log::error!("[Execute] compilation failed in {project_id}");
-        _ = broadcast.send(ServerMessage::SyncOutputEnd {
-            exit_code: status.code as u8,
-        });
-
-        return Err(());
+    pub async fn take_value(&self) -> Option<T> {
+        self.0.lock().await.take()
     }
 
-    log::trace!("[Execute] patching in {project_id}");
-
-    let output = runner.patch_binary("/home/main").await.map_err(|err| {
-        log::error!("[Execute] patching failed in {project_id}: {err}");
-        _ = broadcast.send(ServerMessage::SyncOutput {
-            channel: OutputChannel::Stderr,
-            buf: err.to_string().into_bytes(),
-        });
-        _ = broadcast.send(ServerMessage::SyncOutputEnd { exit_code: 126 });
-    })?;
-
-    if !output.status.success() {
-        log::error!("[Execute] patch failed in {project_id}: {output:#?}");
-        _ = broadcast.send(ServerMessage::SyncOutput {
-            channel: OutputChannel::Stdout,
-            buf: output.stdout,
-        });
-        _ = broadcast.send(ServerMessage::SyncOutput {
-            channel: OutputChannel::Stderr,
-            buf: output.stderr,
-        });
-        _ = broadcast.send(ServerMessage::SyncOutputEnd { exit_code: 126 });
-
-        return Err(());
+    pub async fn has_value(&self) -> bool {
+        self.0.lock().await.is_some()
     }
-    log::trace!("[Execute] running in {project_id}");
+}
 
-    let abort = {
-        let (tx, rx) = oneshot::channel::<()>();
+pub fn create_abort() -> (AbortSender, AbortReceiver) {
+    oneshot::channel::<()>()
+}
 
-        *project.execution.lock().unwrap() = Some(tx);
+pub fn start_job<Next, A, BeforeFn, JobFn, FinishFn>(
+    this: &mut A,
+    ctx: &mut A::Context,
+    before: BeforeFn,
+    job: JobFn,
+    finish: FinishFn,
+) where
+    A: Actor,
+    A::Context: AsyncContext<A>,
+    BeforeFn: 'static + FnOnce(AbortSender, &mut A) -> (),
+    JobFn: 'static + AsyncFnOnce(AbortReceiver) -> Next,
+    FinishFn: 'static + FnOnce(Next, &mut A, &mut A::Context) -> (),
+{
+    let (abort_sender, abort_recv) = create_abort();
 
-        rx
-    };
+    before(abort_sender, this);
 
-    let (exit_code, _, _) = Runner::stream_output(
-        &mut runner.cmd("/home/main", [] as [&str; 0]),
-        stream!(OutputChannel::Stdout),
-        stream!(OutputChannel::Stderr),
-        Some(abort),
-    )
-    .await
-    .map_err(|err| {
-        log::trace!("[Execute] run failed in {project_id}: {err}");
-        _ = broadcast.send(ServerMessage::SyncOutput {
-            channel: OutputChannel::Stderr,
-            buf: err.to_string().into_bytes(),
-        });
-        _ = broadcast.send(ServerMessage::SyncOutputEnd { exit_code: 126 });
-    })?;
-
-    log::trace!("[Execute] finish in {project_id}");
-
-    _ = broadcast.send(ServerMessage::SyncOutputEnd {
-        exit_code: exit_code.code as u8,
-    });
-
-    *project.execution.lock().unwrap() = None;
-
-    Ok(())
+    ctx.spawn(
+        actix::fut::ready(())
+            .then(move |_, this, _| job(abort_recv).into_actor(this))
+            .map(finish),
+    );
 }

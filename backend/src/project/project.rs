@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use actix::Addr;
+use actix::{Actor, Addr};
 use futures::StreamExt;
 use rsground_runner::Runner;
 use tokio::sync::broadcast;
@@ -13,8 +13,7 @@ use crate::http_errors::HttpErrors;
 use crate::utils::{ArcStr, AsyncDefault, AsyncInto, ToStream, EMPTY_STR};
 use crate::ws::messages::{InternalMessage, ServerMessage};
 
-use super::project_runner::{AbortNotify, Execute, ProjectExecuter};
-use super::AccessLevel;
+use super::{lsp, producer, AccessLevel};
 
 pub struct Project {
     pub id: Uuid,
@@ -28,8 +27,7 @@ pub struct Project {
     pub internal: broadcast::Sender<InternalMessage>,
     pub broadcast: broadcast::Sender<ServerMessage>,
     runner: Arc<Runner>,
-    executer: Addr<ProjectExecuter>,
-    execution: AbortNotify,
+    producer: Addr<producer::ProjectProducer>,
 }
 
 impl AsyncDefault for Project {
@@ -37,8 +35,10 @@ impl AsyncDefault for Project {
         let id = Uuid::new_v4();
         let broadcast = broadcast::channel(u8::MAX as usize).0;
 
-        let (runner, execution, executer) =
-            ProjectExecuter::start(id.clone(), broadcast.clone()).await;
+        let runner = Arc::new(Runner::new().await.expect("Cannot start runner"));
+
+        let producer =
+            producer::ProjectProducer::create(id.clone(), broadcast.clone(), runner.clone()).await;
 
         Self {
             id,
@@ -52,8 +52,7 @@ impl AsyncDefault for Project {
             internal: broadcast::channel(u8::MAX as usize).0,
             broadcast,
             runner,
-            executer,
-            execution,
+            producer,
         }
     }
 }
@@ -72,17 +71,11 @@ impl Project {
     }
 
     pub async fn execute(&self) {
-        if self.execution.lock().map_or(false, |e| e.is_some()) {
-            return;
-        }
-
-        _ = self.executer.do_send(Execute);
+        self.producer.do_send(producer::Execute);
     }
 
     pub fn stop_execute(&self) {
-        if let Some(execution) = self.execution.lock().unwrap().take() {
-            _ = execution.send(());
-        }
+        self.producer.do_send(producer::Abort);
     }
 
     pub fn add_request(&mut self, user_info: &RgUserData) {

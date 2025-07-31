@@ -1,8 +1,11 @@
 use std::future::Future;
+use std::io;
+use std::task::{ready, Poll};
 use std::time::Duration;
 use std::{io::Read, ops, os::fd::AsFd};
 
 use async_io::Async;
+use futures::Stream;
 use hakoniwa::{Child, ExitStatus};
 use nix::libc::pid_t;
 use nix::sys::signal::{self, Signal};
@@ -10,6 +13,7 @@ use nix::{
     sys::wait::{self, WaitPidFlag, WaitStatus},
     unistd::Pid,
 };
+use tokio::io::AsyncRead;
 
 pub trait HakoniwaChildExt {
     fn try_wait(&self) -> Option<ExitStatus>;
@@ -82,6 +86,13 @@ impl HakoniwaChildExt for Child {
 
 pub struct AsyncOsReader(Async<os_pipe::PipeReader>);
 
+impl AsyncOsReader {
+    /// N is the buffer size for reads
+    pub fn stream<const N: usize>(self) -> AsyncOsReaderStream<N> {
+        AsyncOsReaderStream { inner: self }
+    }
+}
+
 impl From<os_pipe::PipeReader> for AsyncOsReader {
     fn from(value: os_pipe::PipeReader) -> Self {
         Self(Async::new(value).expect("Cannot create async wrapper"))
@@ -94,33 +105,49 @@ impl AsFd for AsyncOsReader {
     }
 }
 
-impl AsyncOsReader {
-    pub async fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        _ = self.0.readable().await?;
-        unsafe { self.0.get_mut() }.read(buf)
-    }
-
-    pub async fn read_to_end(&mut self, buf: &mut Vec<u8>) -> std::io::Result<usize> {
-        let mut total_bytes = 0;
-
-        loop {
-            let read_bytes = self.read(buf.as_mut_slice()).await?;
-
-            if read_bytes == 0 {
-                break;
-            }
-
-            total_bytes += read_bytes;
-        }
-
-        Ok(total_bytes)
-    }
-}
-
 impl ops::Deref for AsyncOsReader {
     type Target = os_pipe::PipeReader;
 
     fn deref(&self) -> &Self::Target {
         &self.0.get_ref()
+    }
+}
+
+impl AsyncRead for AsyncOsReader {
+    fn poll_read(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        ready!(self.0.poll_readable(cx))?;
+
+        unsafe { self.0.get_mut() }.read(buf.initialize_unfilled())?;
+
+        Poll::Ready(Ok(()))
+    }
+}
+
+pub struct AsyncOsReaderStream<const N: usize> {
+    inner: AsyncOsReader,
+}
+
+impl<const N: usize> Stream for AsyncOsReaderStream<N> {
+    type Item = Result<Vec<u8>, io::Error>;
+
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
+        ready!(self.inner.0.poll_readable(cx))?;
+
+        let buf = &mut [0; N];
+
+        let readed = unsafe { self.inner.0.get_mut() }.read(buf)?;
+
+        if readed == 0 {
+            Poll::Ready(None)
+        } else {
+            Poll::Ready(Some(Ok(buf[..readed].to_vec())))
+        }
     }
 }

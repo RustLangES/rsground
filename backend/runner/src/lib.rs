@@ -10,6 +10,7 @@ use hakoniwa_ext::{AsyncOsReader, HakoniwaChildExt};
 pub use os_pipe::{PipeReader, PipeWriter};
 use std::future::Future;
 use std::path::{Path, PathBuf};
+use tokio::io::AsyncReadExt;
 use tokio::sync::oneshot;
 use tokio::{fs, io};
 
@@ -184,7 +185,7 @@ impl Runner {
             .spawn()
     }
 
-    pub fn start_rls(&mut self) -> hakoniwa::Result<(Child, PipeWriter, PipeReader, PipeReader)> {
+    pub fn start_rls(&self) -> hakoniwa::Result<(Child, PipeWriter, AsyncOsReader, AsyncOsReader)> {
         let mut child = self
             .container
             .command("/bin/rust-analyzer")
@@ -196,8 +197,16 @@ impl Runner {
             .spawn()?;
 
         let stdin = child.stdin.take().expect("Needs communication >:(");
-        let stdout = child.stdout.take().expect("Needs communication >:(");
-        let stderr = child.stderr.take().expect("Needs communication >:(");
+        let stdout = child
+            .stdout
+            .take()
+            .map(AsyncOsReader::from)
+            .expect("Needs communication >:(");
+        let stderr = child
+            .stderr
+            .take()
+            .map(AsyncOsReader::from)
+            .expect("Needs communication >:(");
 
         Ok((child, stdin, stdout, stderr))
     }

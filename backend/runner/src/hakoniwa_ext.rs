@@ -91,6 +91,10 @@ impl AsyncOsReader {
     pub fn stream<const N: usize>(self) -> AsyncOsReaderStream<N> {
         AsyncOsReaderStream { inner: self }
     }
+
+    pub fn into_lsp(self) -> LspStdoutReader {
+        LspStdoutReader { inner: self.0 }
+    }
 }
 
 impl From<os_pipe::PipeReader> for AsyncOsReader {
@@ -149,5 +153,104 @@ impl<const N: usize> Stream for AsyncOsReaderStream<N> {
         } else {
             Poll::Ready(Some(Ok(buf[..readed].to_vec())))
         }
+    }
+}
+
+pub struct LspStdoutReader {
+    inner: Async<os_pipe::PipeReader>,
+}
+
+impl LspStdoutReader {
+    fn inner(&self) -> &Async<os_pipe::PipeReader> {
+        &self.inner
+    }
+}
+
+impl From<os_pipe::PipeReader> for LspStdoutReader {
+    fn from(value: os_pipe::PipeReader) -> Self {
+        Self {
+            inner: Async::new(value).expect("Cannot create async wrapper"),
+        }
+    }
+}
+
+impl AsFd for LspStdoutReader {
+    fn as_fd(&self) -> std::os::unix::prelude::BorrowedFd<'_> {
+        self.inner().as_fd()
+    }
+}
+
+impl ops::Deref for LspStdoutReader {
+    type Target = os_pipe::PipeReader;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner().get_ref()
+    }
+}
+
+impl Stream for LspStdoutReader {
+    type Item = Result<String, io::Error>;
+
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
+        ready!(self.inner().poll_readable(cx))?;
+
+        let reader = unsafe { self.inner.get_mut() };
+
+        const CONTENT_LENGTH: &[u8] = b"Content-Length: ";
+
+        let buf = &mut [0; CONTENT_LENGTH.len()];
+        let readed = reader.read(buf)?;
+
+        if readed == 0 {
+            return Poll::Ready(None);
+        }
+
+        assert_eq!(buf, CONTENT_LENGTH);
+
+        let buf = &mut [0; 1];
+        let mut content_length = 0usize;
+
+        loop {
+            reader.read_exact(buf)?;
+
+            match buf[0] {
+                b'0'..=b'9' => {
+                    let digit = buf[0] - b'0';
+                    content_length *= 10;
+                    content_length += digit as usize;
+                }
+                b'\r' => {
+                    // Collect newline
+                    reader.read_exact(buf)?;
+                    break;
+                }
+                _ => {
+                    return Poll::Ready(Some(Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Unexpected char",
+                    ))));
+                }
+            }
+        }
+
+        // Collect separator between headers and content
+        // \r\n
+        reader.read_exact(buf)?;
+        reader.read_exact(buf)?;
+
+        let mut buf = vec![0; content_length];
+        let readed = unsafe { self.inner.get_mut() }.read(&mut buf)?;
+
+        if readed == 0 {
+            return Poll::Ready(None);
+        }
+
+        let content =
+            String::from_utf8(buf).map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err));
+
+        Poll::Ready(Some(content))
     }
 }

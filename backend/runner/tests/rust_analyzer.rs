@@ -4,6 +4,7 @@
 )]
 mod common;
 
+use core::fmt;
 use std::io::Write;
 use std::time::Duration;
 
@@ -23,59 +24,29 @@ fn make_notify(method: &str, params: &str) -> String {
     format!("Content-Length: {}\r\n\r\n{content}", content.len())
 }
 
-// codemirror
-const CM_OPTIONS: &str = r#"{
-    "capabilities": {
-        "textDocument": {
-            "hover": {
-                "dynamicRegistration": true,
-                "contentFormat": ["plaintext", "markdown"]
-            },
-            "completion": {
-                "dynamicRegistration": true,
-                "completionItem": {
-                    "commitCharactersSupport": true,
-                    "documentationFormat": ["plaintext", "markdown"]
-                },
-                "contextSupport": false
-            },
-            "signatureHelp": {
-                "dynamicRegistration": true,
-                "signatureInformation": {
-                    "documentationFormat": ["plaintext", "markdown"]
-                }
-            },
-            "declaration": {
-                "dynamicRegistration": true,
-                "linkSupport": true
-            },
-            "definition": {
-                "dynamicRegistration": true,
-                "linkSupport": true
-            },
-            "typeDefinition": {
-                "dynamicRegistration": true,
-                "linkSupport": true
-            },
-            "implementation": {
-                "dynamicRegistration": true,
-                "linkSupport": true
-            }
-        },
-        "workspace": {
-            "didChangeConfiguration": {
-                "dynamicRegistration": true
-            }
-        },
-        "window": {
-            "workDoneProgress": true
-        }
-    },
-    "initializationOptions": null,
-    "processId": null,
-    "rootUri": "file://"#;
-
 const SERVER_INITIALIZE: &str = r#"{"jsonrpc":"2.0","id":1,"result":{"capabilities":{"positionEncoding":"utf-16","textDocumentSync":{"openClose":true,"change":2,"save":{}},"selectionRangeProvider":true,"hoverProvider":true,"completionProvider":{"resolveProvider":false,"triggerCharacters":[":",".","'","("],"completionItem":{"labelDetailsSupport":false}},"signatureHelpProvider":{"triggerCharacters":["(",",","<"]},"definitionProvider":true,"typeDefinitionProvider":true,"implementationProvider":true,"referencesProvider":true,"documentHighlightProvider":true,"documentSymbolProvider":true,"workspaceSymbolProvider":true,"codeActionProvider":true,"codeLensProvider":{"resolveProvider":true},"documentFormattingProvider":true,"documentRangeFormattingProvider":false,"documentOnTypeFormattingProvider":{"firstTriggerCharacter":".","moreTriggerCharacter":["=","<",">","{","(","|"]},"renameProvider":{"prepareProvider":true},"foldingRangeProvider":true,"declarationProvider":true,"workspace":{"workspaceFolders":{"supported":true,"changeNotifications":true},"fileOperations":{"willRename":{"filters":[{"scheme":"file","pattern":{"glob":"**/*.rs","matches":"file"}},{"scheme":"file","pattern":{"glob":"**","matches":"folder"}}]}}},"callHierarchyProvider":true,"semanticTokensProvider":{"legend":{"tokenTypes":["comment","decorator","enumMember","enum","function","interface","keyword","macro","method","namespace","number","operator","parameter","property","string","struct","typeParameter","variable","angle","arithmetic","attributeBracket","attribute","bitwise","boolean","brace","bracket","builtinAttribute","builtinType","character","colon","comma","comparison","constParameter","const","deriveHelper","derive","dot","escapeSequence","formatSpecifier","generic","invalidEscapeSequence","label","lifetime","logical","macroBang","parenthesis","procMacro","punctuation","selfKeyword","selfTypeKeyword","semicolon","static","toolModule","typeAlias","union","unresolvedReference"],"tokenModifiers":["async","documentation","declaration","static","defaultLibrary","associated","attribute","callable","constant","consuming","controlFlow","crateRoot","injected","intraDocLink","library","macro","mutable","procMacro","public","reference","trait","unsafe"]},"range":true,"full":{"delta":true}},"inlayHintProvider":{"resolveProvider":false},"diagnosticProvider":{"interFileDependencies":true,"workspaceDiagnostics":false},"experimental":{"externalDocs":true,"hoverRange":true,"joinLines":true,"matchingBrace":true,"moveItem":true,"onEnter":true,"openCargoToml":true,"parentModule":true,"runnables":{"kinds":["cargo"]},"ssr":true,"workspaceSymbolScopeKindFiltering":true}},"serverInfo":{"name":"rust-analyzer","version":"1.85.1 (4eb1612 2025-03-15)"}}}"#;
+fn initialization_options(root_uri: impl fmt::Display) -> String {
+    // codemirror capabilities
+    format!(
+        r#"{{
+            "capabilities": {{
+                "textDocument": {{
+                    "hover":{{"dynamicRegistration":true,"contentFormat":["plaintext", "markdown"]}},
+                    "completion":{{"dynamicRegistration":true,"completionItem":{{"commitCharactersSupport":true,"documentationFormat":["plaintext","markdown"]}},"contextSupport":false}},
+                    "signatureHelp":{{"dynamicRegistration":true,"signatureInformation":{{"documentationFormat":["plaintext","markdown"]}}}},
+                    "declaration":{{"dynamicRegistration":true,"linkSupport":true}},
+                    "definition":{{"dynamicRegistration":true,"linkSupport":true}},
+                    "typeDefinition":{{"dynamicRegistration":true,"linkSupport":true}},
+                    "implementation":{{"dynamicRegistration":true,"linkSupport":true}}
+                }},
+                "window":{{"workDoneProgress":true}}
+            }},
+            "initializationOptions": null,
+            "processId": null,
+            "rootUri": "file://{root_uri}"
+        }}"#
+    )
+}
 
 /// Only test in release mode, this is a slow test
 #[cfg(not(debug_assertions))]
@@ -90,18 +61,16 @@ async fn rust_analyzer_start() {
         let content = make_request(
             1,
             "initialize",
-            &format!("{CM_OPTIONS}{}\"}}", runner.home().display()),
+            &initialization_options(runner.home().display()),
         );
         println!("\x1b[34m[STDIN] {content}\x1b[0m");
         stdin.write_all(content.as_bytes()).unwrap();
-
-        _ = tokio::time::sleep(Duration::from_millis(1000)).await;
 
         let content = make_notify("initialized", "{}");
         println!("\x1b[34m[STDIN] {content}\x1b[0m");
         stdin.write_all(content.as_bytes()).unwrap();
 
-        _ = tokio::time::sleep(Duration::from_millis(1000)).await;
+        _ = tokio::time::sleep(Duration::from_millis(2000)).await;
 
         let content = make_notify("exit", "{}");
         println!("\x1b[34m[STDIN] {content}\x1b[0m");
@@ -149,6 +118,5 @@ async fn rust_analyzer_start() {
 
     println!("{exit:#?}");
 
-    panic!();
     assert!(exit.success())
 }

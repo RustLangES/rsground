@@ -50,13 +50,13 @@ pub fn start_job<Next, A, BeforeFn, JobFn, FinishFn>(
 ) where
     A: Actor,
     A::Context: AsyncContext<A>,
-    BeforeFn: 'static + FnOnce(AbortSender, &mut A) -> (),
+    BeforeFn: 'static + FnOnce(AbortSender, &mut A, &mut A::Context) -> (),
     JobFn: 'static + AsyncFnOnce(AbortReceiver) -> Next,
     FinishFn: 'static + FnOnce(Next, &mut A, &mut A::Context) -> (),
 {
     let (abort_sender, abort_recv) = create_abort();
 
-    before(abort_sender, this);
+    before(abort_sender, this, ctx);
 
     ctx.spawn(
         actix::fut::ready(())

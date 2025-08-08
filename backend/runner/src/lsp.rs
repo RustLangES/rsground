@@ -2,7 +2,7 @@ use core::fmt;
 
 use lsp_types::notification::Notification;
 use lsp_types::request::Request;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 pub use lsp_types::*;
 
@@ -66,8 +66,8 @@ impl PartialEq<u32> for LspId {
     }
 }
 
-impl PartialEq<&str> for LspId {
-    fn eq(&self, other: &&str) -> bool {
+impl PartialEq<str> for LspId {
+    fn eq(&self, other: &str) -> bool {
         match self {
             LspId::String(this) => this == other,
             LspId::Number(_) => false,

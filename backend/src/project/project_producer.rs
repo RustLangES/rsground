@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use actix::{Actor, Addr, AsyncContext, Context, Handler, Message};
 use rsground_runner::Runner;
-use tokio::sync::broadcast;
 use tokio::io::AsyncReadExt;
+use tokio::sync::broadcast;
 use uuid::Uuid;
 
 use crate::ws::messages::{OutputChannel, ServerMessage};
@@ -67,7 +67,7 @@ impl Handler<Abort> for ProjectProducer {
 
     fn handle(&mut self, _: Abort, _: &mut Self::Context) -> Self::Result {
         if let Some(instance) = self.instance.take() {
-            instance.send(());
+            _ = instance.send(());
         }
     }
 }
@@ -124,7 +124,7 @@ impl Handler<Compile> for ProjectProducer {
         start_job(
             self,
             ctx,
-            |abort, this| {
+            |abort, this, _| {
                 log::trace!("[Producer] compiling in {}", this.project_id);
                 this.instance.replace(abort);
             },
@@ -178,7 +178,7 @@ impl Handler<Patch> for ProjectProducer {
         start_job(
             self,
             ctx,
-            |abort, this| {
+            |abort, this, _| {
                 log::trace!("[Producer] patching in {}", this.project_id);
                 this.instance.replace(abort);
             },
@@ -232,7 +232,7 @@ impl Handler<Run> for ProjectProducer {
         start_job(
             self,
             ctx,
-            |abort, this| {
+            |abort, this, _| {
                 log::trace!("[Producer] running in {}", this.project_id);
                 this.instance.replace(abort);
             },

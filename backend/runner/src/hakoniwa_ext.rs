@@ -15,6 +15,8 @@ use nix::{
 };
 use tokio::io::AsyncRead;
 
+use crate::lsp::LspOutput;
+
 pub trait HakoniwaChildExt {
     fn try_wait(&self) -> Option<ExitStatus>;
     async fn async_wait(&self) -> ExitStatus;
@@ -189,7 +191,7 @@ impl ops::Deref for LspStdoutReader {
 }
 
 impl Stream for LspStdoutReader {
-    type Item = Result<String, io::Error>;
+    type Item = Result<LspOutput, io::Error>;
 
     fn poll_next(
         mut self: std::pin::Pin<&mut Self>,
@@ -248,8 +250,8 @@ impl Stream for LspStdoutReader {
             return Poll::Ready(None);
         }
 
-        let content =
-            String::from_utf8(buf).map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err));
+        let content = serde_json::from_slice(&buf)
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err));
 
         Poll::Ready(Some(content))
     }

@@ -11,6 +11,7 @@ use std::time::Duration;
 use common::cargo::cargo_init;
 use futures::{StreamExt, TryStreamExt};
 use rsground_runner::hakoniwa_ext::HakoniwaChildExt;
+use rsground_runner::lsp::{LspNotify, LspOutput, LspRequest, LspResponse};
 use rsground_runner::Runner;
 use tokio::io::AsyncReadExt;
 
@@ -24,7 +25,6 @@ fn make_notify(method: &str, params: &str) -> String {
     format!("Content-Length: {}\r\n\r\n{content}", content.len())
 }
 
-const SERVER_INITIALIZE: &str = r#"{"jsonrpc":"2.0","id":1,"result":{"capabilities":{"positionEncoding":"utf-16","textDocumentSync":{"openClose":true,"change":2,"save":{}},"selectionRangeProvider":true,"hoverProvider":true,"completionProvider":{"resolveProvider":false,"triggerCharacters":[":",".","'","("],"completionItem":{"labelDetailsSupport":false}},"signatureHelpProvider":{"triggerCharacters":["(",",","<"]},"definitionProvider":true,"typeDefinitionProvider":true,"implementationProvider":true,"referencesProvider":true,"documentHighlightProvider":true,"documentSymbolProvider":true,"workspaceSymbolProvider":true,"codeActionProvider":true,"codeLensProvider":{"resolveProvider":true},"documentFormattingProvider":true,"documentRangeFormattingProvider":false,"documentOnTypeFormattingProvider":{"firstTriggerCharacter":".","moreTriggerCharacter":["=","<",">","{","(","|"]},"renameProvider":{"prepareProvider":true},"foldingRangeProvider":true,"declarationProvider":true,"workspace":{"workspaceFolders":{"supported":true,"changeNotifications":true},"fileOperations":{"willRename":{"filters":[{"scheme":"file","pattern":{"glob":"**/*.rs","matches":"file"}},{"scheme":"file","pattern":{"glob":"**","matches":"folder"}}]}}},"callHierarchyProvider":true,"semanticTokensProvider":{"legend":{"tokenTypes":["comment","decorator","enumMember","enum","function","interface","keyword","macro","method","namespace","number","operator","parameter","property","string","struct","typeParameter","variable","angle","arithmetic","attributeBracket","attribute","bitwise","boolean","brace","bracket","builtinAttribute","builtinType","character","colon","comma","comparison","constParameter","const","deriveHelper","derive","dot","escapeSequence","formatSpecifier","generic","invalidEscapeSequence","label","lifetime","logical","macroBang","parenthesis","procMacro","punctuation","selfKeyword","selfTypeKeyword","semicolon","static","toolModule","typeAlias","union","unresolvedReference"],"tokenModifiers":["async","documentation","declaration","static","defaultLibrary","associated","attribute","callable","constant","consuming","controlFlow","crateRoot","injected","intraDocLink","library","macro","mutable","procMacro","public","reference","trait","unsafe"]},"range":true,"full":{"delta":true}},"inlayHintProvider":{"resolveProvider":false},"diagnosticProvider":{"interFileDependencies":true,"workspaceDiagnostics":false},"experimental":{"externalDocs":true,"hoverRange":true,"joinLines":true,"matchingBrace":true,"moveItem":true,"onEnter":true,"openCargoToml":true,"parentModule":true,"runnables":{"kinds":["cargo"]},"ssr":true,"workspaceSymbolScopeKindFiltering":true}},"serverInfo":{"name":"rust-analyzer","version":"1.85.1 (4eb1612 2025-03-15)"}}}"#;
 fn initialization_options(root_uri: impl fmt::Display) -> String {
     // codemirror capabilities
     format!(
@@ -80,8 +80,21 @@ async fn rust_analyzer_start() {
     let b = tokio::spawn(async move {
         let mut stdout = stdout
             .into_lsp()
-            .inspect_ok(|msg| {
-                println!("\x1b[32m[STDOUT]: {msg}\x1b[0m");
+            .inspect_ok(|msg| match msg {
+                LspOutput::Response(LspResponse::Ok { id, result, .. }) => {
+                    println!("\x1b[32m[STDOUT/RESPONSE] ({id}): {result:?}\x1b[0m");
+                }
+                LspOutput::Response(LspResponse::Err { id, error, .. }) => {
+                    println!("\x1b[31m[STDOUT/RESPONSE] ({id}): {error:?}\x1b[0m");
+                }
+                LspOutput::Request(LspRequest {
+                    id, method, params, ..
+                }) => {
+                    println!("\x1b[32m[STDOUT/REQUEST] ({id}/{method}): {params}\x1b[0m");
+                }
+                LspOutput::Notify(LspNotify { method, params, .. }) => {
+                    println!("\x1b[32m[STDOUT/NOTIFY] ({method}): {params}\x1b[0m");
+                }
             })
             .inspect_err(|msg| {
                 println!("\x1b[31m[STDOUT/ERROR]: {msg}\x1b[0m");
@@ -93,7 +106,13 @@ async fn rust_analyzer_start() {
             .expect("Should send server initialization")
             .expect("Cannot get stdout");
 
-        assert_eq!(initialize, SERVER_INITIALIZE);
+        let initialize = initialize
+            .as_response()
+            .expect("Should send server initialization");
+
+        assert_eq!(initialize.id(), 1, "Initialize request made from id 1");
+
+        assert!(initialize.is_ok(), "should be success");
 
         stdout.map(|_| ()).collect::<()>().await;
         println!("[STDOUT/END]");

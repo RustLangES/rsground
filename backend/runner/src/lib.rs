@@ -3,14 +3,15 @@
 pub mod error;
 pub mod futures_ext;
 pub mod hakoniwa_ext;
+pub mod lsp;
 
+use futures::TryStreamExt;
 use futures_ext::{FutureExt, OptionalFuture};
 use hakoniwa::{Child, Command, Container, ExitStatus, Output};
-use hakoniwa_ext::{AsyncOsReader, HakoniwaChildExt, LspStdoutReader};
+use hakoniwa_ext::{AsyncOsReader, HakoniwaChildExt};
 pub use os_pipe::{PipeReader, PipeWriter};
 use std::future::Future;
 use std::path::{Path, PathBuf};
-use tokio::io::AsyncReadExt;
 use tokio::sync::oneshot;
 use tokio::{fs, io};
 
@@ -98,14 +99,15 @@ impl Runner {
     }
 
     pub async fn collect_output(cmd: &mut Command) -> Result<Output, hakoniwa::Error> {
-        async fn collect(mut stream: AsyncOsReader) -> Vec<u8> {
-            let mut buf = Vec::new();
-
-            let bytes = stream.read_to_end(&mut buf).await;
-
-            _ = dbg!(bytes);
-
-            buf
+        async fn collect(stream: AsyncOsReader) -> Vec<u8> {
+            stream
+                .stream::<1024>()
+                .try_fold(vec![], async |mut acc, item| {
+                    acc.extend(item.into_iter());
+                    Ok(acc)
+                })
+                .await
+                .expect("Cannot read stdout")
         }
 
         Self::stream_output(cmd, collect, collect, None)

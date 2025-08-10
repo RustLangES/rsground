@@ -10,6 +10,8 @@ use crate::http_errors::HttpErrors;
 use crate::state::AppState;
 use crate::utils::ArcStr;
 
+use super::auth_log;
+
 pub struct OAuthData {
     pub client: oauth2::basic::BasicClient,
 }
@@ -54,13 +56,13 @@ async fn callback(
         .await
         .map_err(|err| err.to_string())
         .map_err(HttpErrors::CodeExchange)
-        .inspect_err(|err| log::error!("{err}"))?;
+        .inspect_err(|err| auth_log::callback::error!("{err}"))?;
 
     let access_token = token.access_token().secret();
     let github_user = github::fetch_user(access_token)
         .await
         .map_err(HttpErrors::GithubUserFetch)
-        .inspect_err(|err| log::error!("{err}"))?;
+        .inspect_err(|err| auth_log::callback::error!("{err}"))?;
 
     let user_data = RgUserData::new(
         github_user.login.as_str().into(),

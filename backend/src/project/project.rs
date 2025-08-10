@@ -13,7 +13,7 @@ use crate::http_errors::HttpErrors;
 use crate::utils::{ArcStr, AsyncDefault, AsyncInto, ToStream, EMPTY_STR};
 use crate::ws::messages::{InternalMessage, ServerMessage};
 
-use super::{lsp, producer, AccessLevel};
+use super::{lsp, producer, project_log, AccessLevel};
 
 pub struct Project {
     pub id: Uuid,
@@ -102,7 +102,7 @@ impl Project {
             .get_runner()
             .create_file(&path.to_string(), &document.text().await)
             .await
-            .inspect_err(|err| log::error!("{err}"));
+            .inspect_err(|err| project_log::error!("{err}"));
 
         self.documents
             .entry(path)

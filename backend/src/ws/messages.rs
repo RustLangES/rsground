@@ -1,3 +1,4 @@
+use core::fmt;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -92,6 +93,53 @@ pub enum ServerMessage {
         // Only for owner
         requests: Option<HashMap<ArcStr, ArcStr>>,
     },
+}
+
+impl fmt::Display for ServerMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ServerMessage::Error { message } => f.debug_tuple("Error").field(message).finish(),
+            ServerMessage::ProjectConfig {
+                name, is_public, ..
+            } => f
+                .debug_tuple("ProjectConfig")
+                .field(name)
+                .field(is_public)
+                .finish(),
+            ServerMessage::ProjectFiles { .. } => f.debug_tuple("ProjectFiles").finish(),
+            ServerMessage::UpdateAccess { access, user_id } => f
+                .debug_tuple("UpdateAccess")
+                .field(user_id)
+                .field(access)
+                .finish(),
+            ServerMessage::UserConnected { user_id, user_name } => f
+                .debug_tuple("UserConnected")
+                .field(user_id)
+                .field(user_name)
+                .finish(),
+            ServerMessage::RequestAccess { user_id, user_name } => f
+                .debug_tuple("RequestAccess")
+                .field(user_id)
+                .field(user_name)
+                .finish(),
+            ServerMessage::Sync { file, revision, .. } => {
+                f.debug_tuple("Sync").field(file).field(revision).finish()
+            }
+            ServerMessage::SyncCursors { file, .. } => {
+                f.debug_tuple("SyncCursors").field(file).finish()
+            }
+            ServerMessage::SyncOutput { channel, .. } => {
+                f.debug_tuple("SyncOutput").field(channel).finish()
+            }
+            ServerMessage::SyncOutputStart => f.debug_tuple("SyncOutputStart").finish(),
+            ServerMessage::SyncOutputEnd { exit_code } => {
+                f.debug_tuple("SyncOutputEnd").field(exit_code).finish()
+            }
+            ServerMessage::Welcome { session_id, .. } => {
+                f.debug_tuple("Welcome").field(session_id).finish()
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]

@@ -10,3 +10,7 @@ pub use project::Project;
 pub use project_access::AccessLevel;
 pub use project_manager::ProjectManager;
 pub(self) use project_producer as producer;
+
+use crate::utils::define_local_logger;
+
+define_local_logger! {project_log as "backend::project" {}}

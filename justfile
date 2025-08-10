@@ -1,4 +1,21 @@
+set export
 
+LOG_DEFAULT      := env("LOG_DEFAULT", "debug")
+LOG_BACKEND      := ",backend="      + env("LOG_BACKEND", "trace")
+LOG_HAKONIWA     := ",hakoniwa="     + env("LOG_HAKONIWA", "info")
+LOG_LSP          := ",backend::lsp=" + env("LOG_LSP", "debug")
+RUST_LOG_DEFAULT := "actix_server=off,actix_server::server=info," + LOG_DEFAULT + LOG_BACKEND + LOG_HAKONIWA + LOG_LSP
+RUST_LOG         := env("RUST_LOG", RUST_LOG_DEFAULT)
+
+[group("run")]
+run-backend:
+	cargo run -p backend
+
+[group("run")]
+run-frontend:
+	cd frontend && pnpm dev
+
+[group("vendor")]
 @setup-vendor:
   just setup-vendor-check-binary curl
   just setup-vendor-check-binary ouch
@@ -83,6 +100,7 @@
 
   echo -e "\x1b[1;30;43m  FINISH  \x1b[0m"
 
+[group("vendor")]
 @setup-vendor-if-not:
   if [ -d backend/runner/lxc_rootfs ]; then \
     echo "Already vendored"; \
@@ -90,17 +108,14 @@
     just setup-vendor; \
   fi
 
-dev:
-	cd frontend && pnpm dev &
-	cd backend && cargo watch -x run
-	|| pkill -9 webpack && pkill -9 cargo
-
+[private]
 @setup-vendor-check-binary NAME:
   if ! command -v {{NAME}} 2>&1 >/dev/null; then \
       echo "Needs \`{{NAME}}\` command for work";\
       exit 1; \
   fi
 
+[private]
 @setup-vendor-download NAME:
   if [ -f backend/runner/lxc_vendor/{{NAME}}.tar.xz ]; then \
     echo -e "\x1b[1;32m  \`{{NAME}}.tar.xz\` already downloaded\x1b[0m"; \
@@ -109,6 +124,7 @@ dev:
     curl -L https://vendor.rsground.rustlang-es.org/{{NAME}}.tar.xz -o backend/runner/lxc_vendor/{{NAME}}.tar.xz; \
   fi
 
+[private]
 @setup-vendor-uncompress NAME:
   if [ -d backend/runner/lxc_vendor/{{NAME}} ]; then \
     rm -rf backend/runner/lxc_vendor/{{NAME}}; \
@@ -118,5 +134,6 @@ dev:
   cd backend/runner/lxc_vendor; \
   ouch d --no -q {{NAME}}.tar.xz
 
+[private]
 @setup-vendor-rootfs NAME:
   @rsync -avq backend/runner/lxc_vendor/{{NAME}}/ backend/runner/lxc_rootfs/

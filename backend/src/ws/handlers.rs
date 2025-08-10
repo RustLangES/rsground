@@ -5,12 +5,19 @@ use futures::StreamExt as _;
 
 use crate::collab::Document;
 use crate::project::AccessLevel;
-use crate::utils::{ArcStr, ToStream};
+use crate::utils::{define_local_logger, ArcStr, ToStream};
 use crate::ws::messages::{ClientMessage, ServerMessage, ServerMessageError};
 use crate::ws::ws_ext::SessionExt;
 
 use super::messages::InternalMessage;
 use super::websocket::RgWebsocket;
+
+define_local_logger! {local_log as "backend::ws" {
+    access,
+    msg,
+    response,
+    sync,
+}}
 
 impl RgWebsocket {
     async fn handle_ws_response(
@@ -23,7 +30,8 @@ impl RgWebsocket {
             Err(err) => err.into(),
         };
 
-        log::trace!("Sending response: {response:#?}");
+        local_log::response::trace!("Sending: {response}");
+
         _ = ctx.text_json(&response).await;
     }
 
@@ -167,7 +175,9 @@ impl RgWebsocket {
         msg: Result<ws::AggregatedMessage, ws::ProtocolError>,
         ctx: &mut ws::Session,
     ) {
-        let Ok(msg) = msg.inspect_err(|e| log::error!("Error in websocket stream: {e:?}")) else {
+        let Ok(msg) =
+            msg.inspect_err(|e| local_log::msg::error!("Error in websocket stream: {e:?}"))
+        else {
             return;
         };
 
@@ -177,7 +187,7 @@ impl RgWebsocket {
                     return;
                 }
 
-                log::trace!("New message: {text}");
+                local_log::msg::trace!("New message: {text}");
 
                 match serde_json::from_str::<ClientMessage>(&text) {
                     Ok(client_msg) => {
@@ -186,7 +196,7 @@ impl RgWebsocket {
                         Self::handle_ws_response(ctx, msg).await;
                     }
                     Err(err) => {
-                        log::error!("Could not parse message: {err}");
+                        local_log::msg::error!("Could not parse message: {err}");
 
                         let err = ServerMessage::Error {
                             message: err.to_string(),
@@ -196,7 +206,7 @@ impl RgWebsocket {
                 }
             }
             ws::AggregatedMessage::Close(reason) => {
-                log::info!("Closed connection: {reason:?}");
+                local_log::info!("Closed: {reason:?}");
                 _ = ctx.clone().close(reason).await;
             }
             _ => (),
@@ -309,7 +319,7 @@ impl RgWebsocket {
                     return Err(ServerMessageError::NotOwner);
                 }
 
-                log::info!("User {user_id} accepted");
+                local_log::access::info!("User {user_id} accepted");
 
                 project.permit_access(user_id.clone(), access);
 
@@ -325,7 +335,6 @@ impl RgWebsocket {
                 let project = self.app_state.get_project(self.project_id).await?;
                 let project = project.read().await;
 
-                log::trace!("Stop process in {}", self.project_id);
                 project.stop_execute();
 
                 Err(ServerMessageError::None)
@@ -342,7 +351,7 @@ impl RgWebsocket {
                 let runner = project.get_runner();
 
                 let doc = project.get_file(&file).ok_or_else(|| {
-                    log::error!("File {file:?} not found in {:?}", self.project_id);
+                    local_log::sync::error!("File {file:?} not found in {:?}", self.project_id);
                     ServerMessageError::FileNotFound(file.clone())
                 })?;
 
@@ -376,7 +385,7 @@ impl RgWebsocket {
                 let mut project = project.write().await;
 
                 let doc = project.get_file(&file).ok_or_else(|| {
-                    log::error!("File {file:?} not found in {:?}", self.project_id);
+                    local_log::sync::error!("File {file:?} not found in {:?}", self.project_id);
                     ServerMessageError::FileNotFound(file.clone())
                 })?;
 

@@ -5,9 +5,11 @@ use serde::Serialize;
 use tokio::sync::{Notify, RwLock, RwLockWriteGuard};
 
 use crate::collab::ot::transform_index;
-use crate::utils::{ArcStr, AsyncInto};
+use crate::utils::{define_local_logger, ArcStr, AsyncInto};
 
 use super::UserOperation;
+
+define_local_logger! {local_log as "backend::collab" {}}
 
 #[derive(Debug, Default)]
 pub struct Document {
@@ -108,13 +110,7 @@ impl Document {
         revision: usize,
         mut operation: OperationSeq,
     ) -> Result<(), String> {
-        log::info!(
-            "edit: id = {}, revision = {}, base_len = {}, target_len = {}",
-            user_id,
-            revision,
-            operation.base_len(),
-            operation.target_len()
-        );
+        local_log::info!("edit: id = {user_id}, revision = {revision}");
 
         let mut state = self.state.write().await;
 

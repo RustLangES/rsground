@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::auth::jwt::RgUserData;
 use crate::collab::Document;
+use crate::project::project_log;
 use crate::utils::ArcStr;
 use crate::ws::messages::ServerMessageError;
 
@@ -40,7 +41,7 @@ impl ProjectManager {
     }
 
     pub fn add_project(&mut self, project: Project) -> Arc<RwLock<Project>> {
-        log::info!("New project {}: {}", project.id, project.name);
+        project_log::info!("New {}: {}", project.id, project.name);
         self.projects
             .entry(project.id)
             .insert_entry(RwLock::new(project).into())

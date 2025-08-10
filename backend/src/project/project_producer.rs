@@ -8,7 +8,15 @@ use uuid::Uuid;
 
 use crate::ws::messages::{OutputChannel, ServerMessage};
 
+use super::define_local_logger;
 use super::project_runner::{start_job, AbortSender};
+
+define_local_logger! {local_log as "backend::producer" {
+    compile,
+    patch,
+    run,
+    stream,
+}}
 
 pub struct ProjectProducer {
     pub project_id: Uuid,
@@ -53,7 +61,7 @@ impl Handler<Execute> for ProjectProducer {
 
     fn handle(&mut self, _: Execute, ctx: &mut Self::Context) -> Self::Result {
         if !self.instance.is_some() {
-            log::trace!("Execute started for {}", self.project_id);
+            local_log::trace!(target: self.project_id, "Started");
 
             _ = self.broadcast.send(ServerMessage::SyncOutputStart);
 
@@ -95,7 +103,7 @@ macro_rules! stream {
 
             loop {
                 let Ok(size) = stdio.read(buf).await else {
-                    log::error!(concat!("Cannot read ", stringify!($channel)));
+                    local_log::stream::error!(concat!("Cannot read ", stringify!($channel)));
                     break;
                 };
 
@@ -103,7 +111,7 @@ macro_rules! stream {
                     break;
                 }
 
-                // log::trace!(concat!(stringify!($channel), ": {:x?}"), &buf[..size]);
+                // local_log::stream::trace!(concat!(stringify!($channel), ": {:x?}"), &buf[..size]);
                 _ = broadcast.send(ServerMessage::SyncOutput {
                     channel: $crate::ws::messages::OutputChannel::$channel,
                     buf: buf[..size].to_vec(),
@@ -125,7 +133,7 @@ impl Handler<Compile> for ProjectProducer {
             self,
             ctx,
             |abort, this, _| {
-                log::trace!("[Producer] compiling in {}", this.project_id);
+                local_log::compile::trace!(target: this.project_id, "Started");
                 this.instance.replace(abort);
             },
             async move |abort| {
@@ -137,7 +145,7 @@ impl Handler<Compile> for ProjectProducer {
                 )
                 .await
                 .map_err(|err| {
-                    log::error!("[Producer] compilation failed in {project_id}: {err}");
+                    local_log::compile::error!(target: project_id, "Failed: {err}");
                     _ = broadcast.send(ServerMessage::SyncOutput {
                         channel: OutputChannel::Stderr,
                         buf: err.to_string().into_bytes(),
@@ -146,7 +154,7 @@ impl Handler<Compile> for ProjectProducer {
                 })?;
 
                 if !status.success() {
-                    log::error!("[Producer] compilation failed in {project_id}");
+                    local_log::compile::error!(target: project_id, "Failed");
                     _ = broadcast.send(ServerMessage::SyncOutputEnd {
                         exit_code: status.code as u8,
                     });
@@ -179,12 +187,12 @@ impl Handler<Patch> for ProjectProducer {
             self,
             ctx,
             |abort, this, _| {
-                log::trace!("[Producer] patching in {}", this.project_id);
+                local_log::patch::trace!(target: this.project_id, "Started");
                 this.instance.replace(abort);
             },
             async move |_| {
                 let output = runner.patch_binary("/home/main").await.map_err(|err| {
-                    log::error!("[Producer] patching failed in {project_id}: {err}");
+                    local_log::patch::error!(target: project_id, "Failed: {err}");
                     _ = broadcast.send(ServerMessage::SyncOutput {
                         channel: OutputChannel::Stderr,
                         buf: err.to_string().into_bytes(),
@@ -193,7 +201,7 @@ impl Handler<Patch> for ProjectProducer {
                 })?;
 
                 if !output.status.success() {
-                    log::error!("[Producer] patch failed in {project_id}: {output:#?}");
+                    local_log::patch::error!(target: project_id, "Failed: {output:#?}");
                     _ = broadcast.send(ServerMessage::SyncOutput {
                         channel: OutputChannel::Stdout,
                         buf: output.stdout,
@@ -233,7 +241,7 @@ impl Handler<Run> for ProjectProducer {
             self,
             ctx,
             |abort, this, _| {
-                log::trace!("[Producer] running in {}", this.project_id);
+                local_log::run::trace!(target: this.project_id, "Started");
                 this.instance.replace(abort);
             },
             async move |abort| {
@@ -245,7 +253,7 @@ impl Handler<Run> for ProjectProducer {
                 )
                 .await
                 .map_err(|err| {
-                    log::trace!("[Producer] run failed in {project_id}: {err}");
+                    local_log::run::trace!(target: project_id, "Failed: {err}");
                     _ = broadcast.send(ServerMessage::SyncOutput {
                         channel: OutputChannel::Stderr,
                         buf: err.to_string().into_bytes(),
@@ -253,7 +261,7 @@ impl Handler<Run> for ProjectProducer {
                     _ = broadcast.send(ServerMessage::SyncOutputEnd { exit_code: 126 });
                 })?;
 
-                log::trace!("[Producer] finish in {project_id}");
+                local_log::run::trace!(target: project_id, "Finish");
 
                 _ = broadcast.send(ServerMessage::SyncOutputEnd {
                     exit_code: exit_code.code as u8,

@@ -8,6 +8,7 @@ macro_rules! define_local_logger {
         mod $mod {
             #[allow(unused_macros)]
             macro_rules! log_macro {
+                (target: $D expr:expr, $D ($D tt:tt)+) => {::log::$kind!(target: &format!(concat!($target, "::{}"), $D expr), $D ($D tt)+)};
                 ($D ($D tt:tt)+) => {::log::$kind!(target: $target, $D ($D tt)+)};
                 () => {};
             }
@@ -42,8 +43,8 @@ macro_rules! define_local_logger {
             $crate::utils::define_local_logger!{ @mod [$D] [$mod] [$prefix] }
 
             $(
-                pub mod $name {
-                    $crate::utils::define_local_logger!{ @mod [$D] [$name] [define_local_logger!(@suffix [$prefix] $($suffix)? or $name)] }
+                pub(crate) mod $name {
+                    $crate::utils::define_local_logger!{ @mod [$D] [$name] [$crate::utils::define_local_logger!(@suffix [$prefix] $($suffix)? or $name)] }
                 }
             )*
         }

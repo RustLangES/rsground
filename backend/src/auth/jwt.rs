@@ -8,6 +8,8 @@ use crate::expect_var;
 use crate::http_errors::HttpErrors;
 use crate::utils::ArcStr;
 
+use super::auth_log;
+
 pub static JWT_SECRET: LazyLock<String> = LazyLock::new(|| expect_var!("JWT_SECRET"));
 const JWT_EXP: TimeDelta = Duration::hours(12);
 
@@ -42,7 +44,7 @@ pub fn encode(data: RgUserData) -> Result<String, jsonwebtoken::errors::Error> {
         &data,
         &jsonwebtoken::EncodingKey::from_secret(JWT_SECRET.as_bytes()),
     )
-    .inspect_err(|err| log::error!("Error encoding jwt: {err}"))
+    .inspect_err(|err| auth_log::jwt::error!("Encoding: {err}"))
 }
 
 pub fn decode(token: impl AsRef<str>) -> Option<RgUserData> {
@@ -52,7 +54,7 @@ pub fn decode(token: impl AsRef<str>) -> Option<RgUserData> {
         &jsonwebtoken::Validation::default(),
     )
     .inspect_err(|err| {
-        log::error!("Error al decodificar JWT: {err}");
+        auth_log::jwt::error!("Decoding: {err}");
     })
     .ok()?;
 

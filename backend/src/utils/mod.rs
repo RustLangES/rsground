@@ -7,7 +7,7 @@ mod to_stream;
 pub use async_default::AsyncDefault;
 pub use async_from::AsyncInto;
 pub use expect_var::expect_var;
-pub use logger::define_local_logger;
+pub(crate) use logger::define_local_logger;
 pub use to_stream::ToStream;
 
 use std::sync::{Arc, LazyLock};

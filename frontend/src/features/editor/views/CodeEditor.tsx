@@ -28,6 +28,7 @@ import {
 import { Cursor } from "../types";
 
 import styles from "./CodeEditor.module.sass";
+import { rsLsp } from "@features/lsp/utils";
 
 export interface CodeEditorProps {
   /** full-path of the target file to edit */
@@ -110,6 +111,7 @@ export function CodeEditor(props: CodeEditorProps) {
         readOnly.of([]),
         cursors.of(EditorView.decorations.of(Decoration.set([]))),
         syncExtension(file.data),
+        rsLsp()
       ]}
       onEditorMount={(editor) => {
         setEditor(editor);

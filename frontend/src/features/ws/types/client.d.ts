@@ -4,6 +4,7 @@ import { AccessLevel } from "./access";
 
 export enum ClientMessageKind {
   Config = "config",
+  Lsp = "lsp",
   PermitAccess = "permit_access",
   Execute = "execute",
   FileCreate = "file_create",
@@ -20,6 +21,10 @@ export type ClientMessage<S extends ClientMessageKind = ClientMessageKind> = {
     name?: string;
     is_public?: boolean;
     password?: string;
+  };
+  [ClientMessageKind.Lsp]: {
+    action: ClientMessageKind.Lsp;
+    data: unknown;
   };
   [ClientMessageKind.PermitAccess]: {
     action: ClientMessageKind.PermitAccess;

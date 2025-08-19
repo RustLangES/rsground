@@ -4,6 +4,7 @@ import { OutputChannel } from "./output_channel";
 
 export enum ServerMessageKind {
   Error = "error",
+  Lsp = "lsp",
   ProjectConfig = "project_config",
   ProjectFiles = "project_files",
   UpdateAccess = "update_access",
@@ -21,6 +22,10 @@ export type ServerMessage<S extends ServerMessageKind = ServerMessageKind> = {
   [ServerMessageKind.Error]: {
     action: ServerMessageKind.Error;
     message: string;
+  };
+  [ServerMessageKind.Lsp]: {
+    action: ServerMessageKind.Lsp;
+    data: unknown;
   };
   [ServerMessageKind.ProjectConfig]: {
     action: ServerMessageKind.ProjectConfig;

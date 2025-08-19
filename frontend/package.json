@@ -41,6 +41,9 @@
     "vite-tsconfig-paths": "^5.1.4"
   },
   "dependencies": {
+    "@open-rpc/client-js": "^1.8.1",
+    "codemirror-languageserver": "^1.12.1",
+    "events": "3.3.0",
     "frontend-wasm": "file:../frontend-wasm/pkg/",
     "solid-js": "^1.9.0"
   },

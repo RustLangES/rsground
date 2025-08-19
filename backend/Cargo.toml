@@ -32,6 +32,7 @@ actix-ws.workspace = true
 # Edit Sync
 bytecount.workspace = true
 operational-transform.workspace = true
+itertools = "0.14.0"
 
 [dev-dependencies]
 awc.workspace = true

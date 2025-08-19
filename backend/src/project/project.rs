@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use actix::{Actor, Addr};
+use actix::Addr;
 use futures::StreamExt;
 use rsground_runner::Runner;
 use tokio::sync::broadcast;
@@ -28,17 +28,21 @@ pub struct Project {
     pub broadcast: broadcast::Sender<ServerMessage>,
     runner: Arc<Runner>,
     producer: Addr<producer::ProjectProducer>,
+    lsp: Addr<lsp::ProjectLsp>,
 }
 
 impl AsyncDefault for Project {
     async fn default() -> Self {
         let id = Uuid::new_v4();
         let broadcast = broadcast::channel(u8::MAX as usize).0;
+        let internal = broadcast::channel(u8::MAX as usize).0;
 
         let runner = Arc::new(Runner::new().await.expect("Cannot start runner"));
 
         let producer =
             producer::ProjectProducer::create(id.clone(), broadcast.clone(), runner.clone()).await;
+
+        let lsp = lsp::ProjectLsp::start(id.clone(), internal.clone(), runner.clone()).await;
 
         Self {
             id,
@@ -49,10 +53,11 @@ impl AsyncDefault for Project {
             requests: HashSet::new(),
             is_public: true,
             password: None,
-            internal: broadcast::channel(u8::MAX as usize).0,
+            internal,
             broadcast,
             runner,
             producer,
+            lsp,
         }
     }
 }
@@ -68,6 +73,14 @@ impl Project {
 
     pub fn get_runner(&self) -> Arc<Runner> {
         self.runner.clone()
+    }
+
+    pub fn get_lsp(&self) -> &Addr<lsp::ProjectLsp> {
+        &self.lsp
+    }
+
+    pub async fn start_lsp(&self) {
+        self.lsp.do_send(lsp::Execute);
     }
 
     pub async fn execute(&self) {

@@ -4,7 +4,7 @@ use actix_ws as ws;
 use futures::StreamExt as _;
 
 use crate::collab::Document;
-use crate::project::AccessLevel;
+use crate::project::{self, AccessLevel};
 use crate::utils::{define_local_logger, ArcStr, ToStream};
 use crate::ws::messages::{ClientMessage, ServerMessage, ServerMessageError};
 use crate::ws::ws_ext::SessionExt;
@@ -144,6 +144,14 @@ impl RgWebsocket {
 
                 Err(ServerMessageError::None)
             }
+            InternalMessage::Lsp { client_id, data }
+                if client_id
+                    .as_ref()
+                    .is_none_or(|client_id| *client_id == self.session_id) =>
+            {
+                Ok(ServerMessage::Lsp { data })
+            }
+            InternalMessage::Lsp { .. } => Err(ServerMessageError::None),
         }
     }
 
@@ -187,10 +195,10 @@ impl RgWebsocket {
                     return;
                 }
 
-                local_log::msg::trace!("New message: {text}");
-
                 match serde_json::from_str::<ClientMessage>(&text) {
                     Ok(client_msg) => {
+                        local_log::msg::trace!("New message: {client_msg}");
+
                         let msg = self.handle_client_message(ctx, client_msg).await;
 
                         Self::handle_ws_response(ctx, msg).await;
@@ -311,6 +319,17 @@ impl RgWebsocket {
                     Err(ServerMessageError::FileNotFound(file))
                 }
             }
+            ClientMessage::Lsp { data } => {
+                let project = self.app_state.get_project(self.project_id).await?;
+                let project = project.read().await;
+
+                // TODO:
+                project
+                    .get_lsp()
+                    .do_send(project::lsp::ClientStdin(self.session_id.clone(), data));
+
+                Err(ServerMessageError::None)
+            }
             ClientMessage::PermitAccess { user_id, access } => {
                 let project = self.app_state.get_project(self.project_id).await?;
                 let mut project = project.write().await;
@@ -368,8 +387,6 @@ impl RgWebsocket {
                     .create_file(&file, &doc.text().await)
                     .await
                     .inspect_err(|err| log::error!("{err}"));
-
-                dbg!(&doc.text().await);
 
                 _ = project
                     .internal

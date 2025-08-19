@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use operational_transform::OperationSeq;
+use rsground_runner::lsp::LspId;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -25,6 +26,9 @@ pub enum ClientMessage {
     FileDelete {
         file: ArcStr,
     },
+    Lsp {
+        data: serde_json::Value,
+    },
     PermitAccess {
         user_id: ArcStr,
         access: AccessLevel,
@@ -42,11 +46,45 @@ pub enum ClientMessage {
     SyncFiles,
 }
 
+impl fmt::Display for ClientMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ClientMessage::Config {
+                name, is_public, ..
+            } => f
+                .debug_tuple("Config")
+                .field(name)
+                .field(is_public)
+                .finish_non_exhaustive(),
+            ClientMessage::Execute => f.debug_tuple("Execute").finish(),
+            ClientMessage::FileCreate { file } => f.debug_tuple("FileCreate").field(file).finish(),
+            ClientMessage::FileDelete { file } => f.debug_tuple("FileDelete").field(file).finish(),
+            ClientMessage::Lsp { data } => fmt_lsp_msg(f, data),
+            ClientMessage::PermitAccess { user_id, access } => f
+                .debug_tuple("PermitAccess")
+                .field(user_id)
+                .field(access)
+                .finish(),
+            ClientMessage::Sync { file, revision, .. } => {
+                f.debug_tuple("Sync").field(file).field(revision).finish()
+            }
+            ClientMessage::StopExecute => f.debug_tuple("StopExecute").finish(),
+            ClientMessage::SyncCursor { file, .. } => {
+                f.debug_tuple("SyncCursor").field(file).finish()
+            }
+            ClientMessage::SyncFiles => f.debug_tuple("SyncFiles").finish(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum ServerMessage {
     Error {
         message: String,
+    },
+    Lsp {
+        data: serde_json::Value,
     },
     ProjectConfig {
         name: ArcStr,
@@ -99,6 +137,7 @@ impl fmt::Display for ServerMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ServerMessage::Error { message } => f.debug_tuple("Error").field(message).finish(),
+            ServerMessage::Lsp { data } => fmt_lsp_msg(f, data),
             ServerMessage::ProjectConfig {
                 name, is_public, ..
             } => f
@@ -180,7 +219,74 @@ impl From<ServerMessageError> for ServerMessage {
 
 #[derive(Clone)]
 pub enum InternalMessage {
-    FileEdit { path: ArcStr },
-    FileCreate { path: ArcStr, doc: Arc<Document> },
-    FileDelete { path: ArcStr },
+    Lsp {
+        client_id: Option<ArcStr>,
+        data: serde_json::Value,
+    },
+    FileEdit {
+        path: ArcStr,
+    },
+    FileCreate {
+        path: ArcStr,
+        doc: Arc<Document>,
+    },
+    FileDelete {
+        path: ArcStr,
+    },
+}
+
+fn fmt_lsp_msg(f: &mut fmt::Formatter<'_>, data: &serde_json::Value) -> fmt::Result {
+    let id = data
+        .get("id")
+        .cloned()
+        .map(serde_json::from_value::<LspId>)
+        .and_then(|id| id.ok());
+    let method = data.get("method").and_then(|m| m.as_str());
+
+    match (id, method) {
+        // Notification
+        (None, Some(method)) => {
+            if let Some(params) = data.get("params") {
+                return f
+                    .debug_tuple("Lsp::Notification")
+                    .field(&method)
+                    .field(params)
+                    .finish();
+            }
+        }
+        // Response
+        (Some(id), None) => match (data.get("result"), data.get("error")) {
+            (None, Some(error)) => {
+                return f
+                    .debug_tuple("Lsp::Response::Err")
+                    .field(&format_args!("{id}"))
+                    .field(error)
+                    .finish()
+            }
+
+            (Some(result), None) => {
+                return f
+                    .debug_tuple("Lsp::Response::Ok")
+                    .field(&format_args!("{id}"))
+                    .field(result)
+                    .finish()
+            }
+            // Malformed
+            _ => {}
+        },
+        // Request
+        (Some(id), Some(method)) => {
+            if let Some(params) = data.get("params") {
+                return f
+                    .debug_tuple("Lsp::Request")
+                    .field(&format_args!("{id}"))
+                    .field(&method)
+                    .field(params)
+                    .finish();
+            }
+        }
+        _ => {}
+    }
+
+    f.debug_tuple("Lsp").field(data).finish()
 }

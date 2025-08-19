@@ -1,4 +1,5 @@
 use core::fmt;
+use std::sync::Arc;
 
 use lsp_types::notification::Notification;
 use lsp_types::request::Request;
@@ -6,15 +7,47 @@ use serde::{Deserialize, Serialize};
 
 pub use lsp_types::*;
 
+pub trait RsRequest: lsp_types::request::Request {
+    type Error: serde::de::DeserializeOwned + Serialize + Send + Sync + 'static;
+}
+
+impl RsRequest for request::Initialize {
+    type Error = InitializeError;
+}
+
 pub struct LspInput;
 
 impl LspInput {
-    pub fn notify<T: Notification>(params: T::Params) -> Result<String, serde_json::Error> {
-        serde_json::to_string(&serde_json::json!({
+    pub fn notify_value<T: Notification>(
+        params: T::Params,
+    ) -> Result<serde_json::Value, serde_json::Error> {
+        Ok(serde_json::json!({
             "jsonrpc": JsonRpcVersion,
             "method": T::METHOD,
             "params": serde_json::to_value(params)?
         }))
+    }
+
+    pub fn notify<T: Notification>(params: T::Params) -> Result<String, serde_json::Error> {
+        serde_json::to_string(&Self::notify_value::<T>(params)?)
+    }
+
+    pub fn response_value<T: RsRequest>(
+        id: impl serde::Serialize,
+        data: Result<&T::Result, &T::Error>,
+    ) -> Result<serde_json::Value, serde_json::Error> {
+        match data {
+            Ok(result) => Ok(serde_json::json!({
+                "jsonrpc": JsonRpcVersion,
+                "id": id,
+                "result": serde_json::to_value(result)?
+            })),
+            Err(error) => Ok(serde_json::json!({
+                "jsonrpc": JsonRpcVersion,
+                "id": id,
+                "error": serde_json::to_value(error)?
+            })),
+        }
     }
 
     pub fn request<T: Request>(
@@ -33,12 +66,20 @@ impl LspInput {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum LspId {
-    String(String),
+    String(Arc<str>),
     Number(u32),
 }
 
 impl LspId {
-    pub fn as_string(&self) -> Option<&String> {
+    pub fn into_string(self) -> Option<Arc<str>> {
+        if let Self::String(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_string(&self) -> Option<&str> {
         if let Self::String(v) = self {
             Some(v)
         } else {
@@ -77,7 +118,7 @@ impl PartialEq<u32> for LspId {
 impl PartialEq<str> for LspId {
     fn eq(&self, other: &str) -> bool {
         match self {
-            LspId::String(this) => this == other,
+            LspId::String(this) => this.as_ref() == other,
             LspId::Number(_) => false,
         }
     }

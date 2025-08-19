@@ -345,28 +345,35 @@ impl Handler<ClientStdin> for ProjectLsp {
             _ => {}
         }
 
+        macro_rules! with_id {
+            ($id:expr, |$inner:ident| $body:expr) => {
+                serde_json::to_string($id)
+                    .map(|id| LspId::String(format!("client_id::{client_id}::{id}").into()))
+                    .map(|$inner| $body)
+            };
+        }
+
         let msg = match msg {
             LspOutput::Response(LspResponse::Ok {
                 jsonrpc,
                 id,
                 result,
-            }) => LspOutput::Response(LspResponse::Ok {
-                id: LspId::String(format!("client_id::{client_id}::{id:?}").into()),
+            }) => with_id!(&id, |id| LspOutput::Response(LspResponse::Ok {
+                id,
                 jsonrpc,
                 result,
-            }),
+            })),
             LspOutput::Response(LspResponse::Err { jsonrpc, id, error }) => {
-                LspOutput::Response(LspResponse::Err {
-                    id: LspId::String(format!("client_id::{client_id}::{id:?}").into()),
+                with_id!(&id, |id| LspOutput::Response(LspResponse::Err {
+                    id,
                     jsonrpc,
                     error,
-                })
+                }))
             }
-            LspOutput::Request(req) => LspOutput::Request(LspRequest {
-                id: LspId::String(format!("client_id::{client_id}::{:?}", req.id).into()),
-                ..req
-            }),
-            notify @ LspOutput::Notify(..) => notify,
+            LspOutput::Request(req) => {
+                with_id!(&req.id, |id| LspOutput::Request(LspRequest { id, ..req }))
+            }
+            notify @ LspOutput::Notify(..) => Ok(notify),
         };
 
         // TODO:
@@ -409,7 +416,7 @@ impl StreamHandler<Stdout> for ProjectLsp {
                     .into_string()
                     .and_then(|s| {
                         s.strip_prefix("client_id::")
-                            .and_then(|s| s.splitn(1, ":").collect_tuple::<(_, _)>())
+                            .and_then(|s| s.splitn(2, "::").collect_tuple::<(_, _)>())
                             .map(|(client_id, original_id)| {
                                 (
                                     Arc::from(client_id),

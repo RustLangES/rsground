@@ -164,14 +164,14 @@ impl LspResponse {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct LspNotify {
     pub jsonrpc: JsonRpcVersion,
     pub method: String,
     pub params: serde_json::Value,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct LspRequest {
     pub jsonrpc: JsonRpcVersion,
     pub id: LspId,
@@ -179,7 +179,7 @@ pub struct LspRequest {
     pub params: serde_json::Value,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum LspOutput {
     Response(LspResponse),

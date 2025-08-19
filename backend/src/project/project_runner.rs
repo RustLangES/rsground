@@ -5,7 +5,6 @@ use tokio::sync::{oneshot, Mutex};
 
 pub type AbortSender = oneshot::Sender<()>;
 pub type AbortReceiver = oneshot::Receiver<()>;
-pub type SharedAbort = SharedExport<AbortSender>;
 
 #[derive(Debug)]
 #[repr(transparent)]
@@ -20,20 +19,6 @@ impl<T> Clone for SharedExport<T> {
 impl<T> Default for SharedExport<T> {
     fn default() -> Self {
         Self(Mutex::new(None).into())
-    }
-}
-
-impl<T> SharedExport<T> {
-    pub async fn set_value(&self, val: T) {
-        self.0.lock().await.replace(val);
-    }
-
-    pub async fn take_value(&self) -> Option<T> {
-        self.0.lock().await.take()
-    }
-
-    pub async fn has_value(&self) -> bool {
-        self.0.lock().await.is_some()
     }
 }
 

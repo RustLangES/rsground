@@ -19,6 +19,13 @@ const MAIN_RS: &str = r#"fn main() {
     }
 }"#;
 
+pub const CARGO_TOML: &str = r#"
+[package]
+name = "rsground-main"
+version = "0.1.0"
+edition = "2021"
+"#;
+
 pub struct ProjectManager {
     projects: HashMap<Uuid, Arc<RwLock<Project>>>,
 }
@@ -34,7 +41,11 @@ impl ProjectManager {
         let mut project = Project::new(owner.id.clone(), name).await;
 
         project
-            .add_file("main.rs", Document::new_with(MAIN_RS.to_string()))
+            .add_file("src/main.rs", Document::new_with(MAIN_RS.to_string()))
+            .await;
+
+        project
+            .add_file("Cargo.toml", Document::new_with(CARGO_TOML.to_string()))
             .await;
 
         self.add_project(project)

@@ -59,7 +59,7 @@ export function startWebsocket() {
 
     syncFiles(msg.files);
 
-    openFile("main.rs");
+    openFile("src/main.rs");
   }));
 }
 

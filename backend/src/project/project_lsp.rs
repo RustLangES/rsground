@@ -473,11 +473,22 @@ impl StreamHandler<Stdout> for ProjectLsp {
                 }
             }
             LspOutput::Request(req) => {
-                local_log::request::trace!(target: self.project_id, "{req:?}")
+                local_log::request::trace!(target: self.project_id, "{req:?}");
             }
             LspOutput::Notify(noti) => {
-                local_log::notify::trace!(target: self.project_id, "{noti:?}")
-            } // _ = self.broadcast.send(InternalMessage::Lsp { client_id: (), data: () });
+                local_log::notify::trace!(target: self.project_id, "{noti:?}");
+                match serde_json::to_value(noti) {
+                    Ok(data) => {
+                        _ = self.broadcast.send(InternalMessage::Lsp {
+                            client_id: None,
+                            data,
+                        });
+                    }
+                    Err(err) => {
+                        local_log::response::error!(target: self.project_id, "Cannot serialize {err:?}");
+                    }
+                }
+            }
         }
     }
 }

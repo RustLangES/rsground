@@ -95,7 +95,11 @@ impl AsyncOsReader {
     }
 
     pub fn into_lsp(self) -> LspStdoutReader {
-        LspStdoutReader { inner: self.0 }
+        LspStdoutReader {
+            inner: self.0,
+            filled: 0,
+            buf: None,
+        }
     }
 }
 
@@ -160,6 +164,8 @@ impl<const N: usize> Stream for AsyncOsReaderStream<N> {
 
 pub struct LspStdoutReader {
     inner: Async<os_pipe::PipeReader>,
+    filled: usize,
+    buf: Option<Vec<u8>>,
 }
 
 impl LspStdoutReader {
@@ -172,6 +178,8 @@ impl From<os_pipe::PipeReader> for LspStdoutReader {
     fn from(value: os_pipe::PipeReader) -> Self {
         Self {
             inner: Async::new(value).expect("Cannot create async wrapper"),
+            filled: 0,
+            buf: None,
         }
     }
 }
@@ -197,62 +205,80 @@ impl Stream for LspStdoutReader {
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        ready!(self.inner().poll_readable(cx))?;
-
-        let reader = unsafe { self.inner.get_mut() };
-
-        const CONTENT_LENGTH: &[u8] = b"Content-Length: ";
-
-        let buf = &mut [0; CONTENT_LENGTH.len()];
-        let readed = reader.read(buf)?;
-
-        if readed == 0 {
-            return Poll::Ready(None);
-        }
-
-        assert_eq!(buf, CONTENT_LENGTH);
-
-        let buf = &mut [0; 1];
-        let mut content_length = 0usize;
-
         loop {
-            reader.read_exact(buf)?;
+            ready!(self.inner().poll_readable(cx))?;
 
-            match buf[0] {
-                b'0'..=b'9' => {
-                    let digit = buf[0] - b'0';
-                    content_length *= 10;
-                    content_length += digit as usize;
+            if let Some(mut buf) = self.buf.take() {
+                let filled = self.filled;
+                let readed = unsafe { self.inner.get_mut() }.read(&mut buf[filled..])?;
+
+                if readed == 0 {
+                    return Poll::Ready(None);
                 }
-                b'\r' => {
-                    // Collect newline
+
+                self.filled += readed;
+
+                if self.filled >= buf.len() {
+                    let content = serde_json::from_slice(&buf).map_err(|err| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            format!("{err} on {}", String::from_utf8_lossy(&buf)),
+                        )
+                    });
+
+                    return Poll::Ready(Some(content));
+                } else {
+                    self.buf = Some(buf);
+                }
+            } else {
+                let reader = unsafe { self.inner.get_mut() };
+
+                const CONTENT_LENGTH: &[u8] = b"Content-Length: ";
+
+                let buf = &mut [0; CONTENT_LENGTH.len()];
+                let readed = reader.read(buf)?;
+
+                if readed == 0 {
+                    return Poll::Ready(None);
+                }
+
+                assert_eq!(buf, CONTENT_LENGTH);
+
+                let buf = &mut [0; 1];
+                let mut content_length = 0usize;
+
+                loop {
                     reader.read_exact(buf)?;
-                    break;
+
+                    match buf[0] {
+                        b'0'..=b'9' => {
+                            let digit = buf[0] - b'0';
+                            content_length *= 10;
+                            content_length += digit as usize;
+                        }
+                        b'\r' => {
+                            // Collect newline
+                            reader.read_exact(buf)?;
+                            break;
+                        }
+                        _ => {
+                            return Poll::Ready(Some(Err(io::Error::new(
+                                io::ErrorKind::InvalidData,
+                                "Unexpected char",
+                            ))));
+                        }
+                    }
                 }
-                _ => {
-                    return Poll::Ready(Some(Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "Unexpected char",
-                    ))));
-                }
+
+                // Collect separator between headers and content
+                // \r\n
+                reader.read_exact(buf)?;
+                reader.read_exact(buf)?;
+
+                let buf = vec![0; content_length];
+                self.buf.replace(buf);
+                self.filled = 0;
             }
         }
-
-        // Collect separator between headers and content
-        // \r\n
-        reader.read_exact(buf)?;
-        reader.read_exact(buf)?;
-
-        let mut buf = vec![0; content_length];
-        let readed = unsafe { self.inner.get_mut() }.read(&mut buf)?;
-
-        if readed == 0 {
-            return Poll::Ready(None);
-        }
-
-        let content = serde_json::from_slice(&buf)
-            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err));
-
-        Poll::Ready(Some(content))
     }
 }

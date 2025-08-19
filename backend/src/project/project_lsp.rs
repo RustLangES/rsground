@@ -316,7 +316,7 @@ impl Handler<ClientStdin> for ProjectLsp {
     fn handle(
         &mut self,
         ClientStdin(client_id, msg): ClientStdin,
-        _: &mut Self::Context,
+        ctx: &mut Self::Context,
     ) -> Self::Result {
         let Ok(msg) = serde_json::from_value::<LspOutput>(msg).map_err(
             |err| local_log::client_stdin::error!(target: self.project_id, "Deserialize: {err:?}"),
@@ -376,9 +376,19 @@ impl Handler<ClientStdin> for ProjectLsp {
             notify @ LspOutput::Notify(..) => Ok(notify),
         };
 
-        // TODO:
-        drop(msg);
-        drop(client_id);
+        let Ok(msg) = msg
+            .and_then(|msg| serde_json::to_string(&msg))
+            .map_err(|err| {
+                local_log::client_stdin::error!(
+                    target: self.project_id,
+                    "Cannot serialize: {err}"
+                )
+            })
+        else {
+            return;
+        };
+
+        ctx.notify(Stdin(msg));
     }
 }
 

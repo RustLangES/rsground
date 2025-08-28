@@ -55,6 +55,13 @@
   :global(.cm-cursor)
     border-color: #FFF
 
+  :global(.cm-tooltip)
+    +neobrutalism
+    background: var(--colors-primary)
+    color: black
+    :global(.documentation)
+      white-space: pre
+
 .completion_tooltip
   +neobrutalism
   background: var(--surface2-background)

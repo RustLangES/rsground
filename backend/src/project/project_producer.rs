@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use actix::{Actor, Addr, AsyncContext, Context, Handler, Message};
+use futures::{StreamExt, TryStreamExt};
 use rsground_runner::Runner;
 use tokio::io::AsyncReadExt;
 use tokio::sync::broadcast;
@@ -98,25 +99,18 @@ macro_rules! stream {
     ($broadcast:ident, $channel:ident) => {{
         let broadcast = $broadcast.clone();
 
-        async move |mut stdio| {
-            let buf = &mut [0; 2048];
-
-            loop {
-                let Ok(size) = stdio.read(buf).await else {
-                    local_log::stream::error!(concat!("Cannot read ", stringify!($channel)));
-                    break;
-                };
-
-                if size == 0 {
-                    break;
-                }
-
-                // local_log::stream::trace!(concat!(stringify!($channel), ": {:x?}"), &buf[..size]);
-                _ = broadcast.send(ServerMessage::SyncOutput {
-                    channel: $crate::ws::messages::OutputChannel::$channel,
-                    buf: buf[..size].to_vec(),
-                });
-            }
+        async move |stdio| {
+            stdio
+                .stream::<1024>()
+                .map_ok(|msg| {
+                    broadcast.send(ServerMessage::SyncOutput {
+                        channel: $crate::ws::messages::OutputChannel::$channel,
+                        buf: msg,
+                    })
+                })
+                .map_err(|err| log::error!(concat!("Cannot read ", stringify!($channel), ": {}"), err))
+                .for_each(async |_| {})
+                .await;
         }
     }};
 }
@@ -138,7 +132,7 @@ impl Handler<Compile> for ProjectProducer {
             },
             async move |abort| {
                 let (status, _, _) = Runner::stream_output(
-                    &mut runner.cmd_rustc(["--color", "always", "/home/main.rs"]),
+                    &mut runner.cmd_bash("cargo", ["build", "--verbose"]),
                     stream!(broadcast, Stdout),
                     stream!(broadcast, Stderr),
                     Some(abort),
@@ -191,14 +185,17 @@ impl Handler<Patch> for ProjectProducer {
                 this.instance.replace(abort);
             },
             async move |_| {
-                let output = runner.patch_binary("/home/main").await.map_err(|err| {
-                    local_log::patch::error!(target: project_id, "Failed: {err}");
-                    _ = broadcast.send(ServerMessage::SyncOutput {
-                        channel: OutputChannel::Stderr,
-                        buf: err.to_string().into_bytes(),
-                    });
-                    _ = broadcast.send(ServerMessage::SyncOutputEnd { exit_code: 126 });
-                })?;
+                let output = runner
+                    .patch_binary("/home/target/debug/rsground-main")
+                    .await
+                    .map_err(|err| {
+                        local_log::patch::error!(target: project_id, "Failed: {err}");
+                        _ = broadcast.send(ServerMessage::SyncOutput {
+                            channel: OutputChannel::Stderr,
+                            buf: err.to_string().into_bytes(),
+                        });
+                        _ = broadcast.send(ServerMessage::SyncOutputEnd { exit_code: 126 });
+                    })?;
 
                 if !output.status.success() {
                     local_log::patch::error!(target: project_id, "Failed: {output:#?}");
@@ -246,7 +243,7 @@ impl Handler<Run> for ProjectProducer {
             },
             async move |abort| {
                 let (exit_code, _, _) = Runner::stream_output(
-                    &mut runner.cmd("/home/main", [] as [&str; 0]),
+                    &mut runner.cmd("/home/target/debug/rsground-main", [] as [&str; 0]),
                     stream!(broadcast, Stdout),
                     stream!(broadcast, Stderr),
                     Some(abort),

@@ -3,7 +3,7 @@ set export
 LOG_DEFAULT      := env("LOG_DEFAULT", "debug")
 LOG_BACKEND      := ",backend="      + env("LOG_BACKEND", "trace")
 LOG_HAKONIWA     := ",hakoniwa="     + env("LOG_HAKONIWA", "info")
-LOG_LSP          := ",backend::lsp=" + env("LOG_LSP", "debug")
+LOG_LSP          := ",backend::lsp=" + env("LOG_LSP", "off")
 RUST_LOG_DEFAULT := "actix_server=off,actix_server::server=info," + LOG_DEFAULT + LOG_BACKEND + LOG_HAKONIWA + LOG_LSP
 RUST_LOG         := env("RUST_LOG", RUST_LOG_DEFAULT)
 

@@ -43,6 +43,7 @@
     frontendBuildInputs = with pkgs; [
       nodejs_22
       pnpm_10
+      vtsls
 
       wasm-pack
     ];

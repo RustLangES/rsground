@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::collab::{Document, DocumentInfo, UserOperation};
 use crate::project::AccessLevel;
-use crate::utils::ArcStr;
+use crate::utils::{ArcStr, Truncate, Truncated};
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
@@ -236,6 +236,8 @@ pub enum InternalMessage {
 }
 
 fn fmt_lsp_msg(f: &mut fmt::Formatter<'_>, data: &serde_json::Value) -> fmt::Result {
+    const TRUNCATE_LEN: usize = 256;
+
     let id = data
         .get("id")
         .cloned()
@@ -250,7 +252,7 @@ fn fmt_lsp_msg(f: &mut fmt::Formatter<'_>, data: &serde_json::Value) -> fmt::Res
                 return f
                     .debug_tuple("Lsp::Notification")
                     .field(&method)
-                    .field(params)
+                    .field(&params.truncate::<TRUNCATE_LEN>())
                     .finish();
             }
         }
@@ -260,7 +262,7 @@ fn fmt_lsp_msg(f: &mut fmt::Formatter<'_>, data: &serde_json::Value) -> fmt::Res
                 return f
                     .debug_tuple("Lsp::Response::Err")
                     .field(&format_args!("{id}"))
-                    .field(error)
+                    .field(&error.truncate::<TRUNCATE_LEN>())
                     .finish()
             }
 
@@ -268,7 +270,7 @@ fn fmt_lsp_msg(f: &mut fmt::Formatter<'_>, data: &serde_json::Value) -> fmt::Res
                 return f
                     .debug_tuple("Lsp::Response::Ok")
                     .field(&format_args!("{id}"))
-                    .field(result)
+                    .field(&result.truncate::<TRUNCATE_LEN>())
                     .finish()
             }
             // Malformed
@@ -281,12 +283,14 @@ fn fmt_lsp_msg(f: &mut fmt::Formatter<'_>, data: &serde_json::Value) -> fmt::Res
                     .debug_tuple("Lsp::Request")
                     .field(&format_args!("{id}"))
                     .field(&method)
-                    .field(params)
+                    .field(&params.truncate::<TRUNCATE_LEN>())
                     .finish();
             }
         }
         _ => {}
     }
 
-    f.debug_tuple("Lsp").field(data).finish()
+    f.debug_tuple("Lsp")
+        .field(&data.truncate::<TRUNCATE_LEN>())
+        .finish()
 }

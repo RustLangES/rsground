@@ -72,14 +72,15 @@
         cctools.libtool
       ];
     });
-    containerPkg = pkgs.dockerTools.buildLayeredImage rec {
+
+    containerPkg = pkgs.dockerTools.buildLayeredImage {
       name = "rsground";
       tag = cargoManifest.package.version;
       created = "now";
       architecture = "amd64";
 
       contents = [ appPkg ];
-      config.Cmd = ["/bin/${name}"];
+      config.Cmd = ["/bin/backend"];
     };
   in {
     packages.${system} = {

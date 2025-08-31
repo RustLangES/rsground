@@ -1,0 +1,92 @@
+name: Release Build and Publish Docker image
+
+permissions:
+  contents: write
+  pull-requests: read
+  packages: write
+
+on:
+  push:
+    paths:
+      - "**/*.rs"
+      - "**/Cargo.toml"
+      - "Cargo.lock"
+      - "flake.nix"
+  workflow_dispatch:
+
+jobs:
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      arch_list: ${{ steps.generate-arch-list.outputs.arch_list }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Generate Arch List
+        id: generate-arch-list
+        run: |
+          ARCH_LIST=$(nix run .#matrix --quiet)
+          echo "Generated Archs:"
+          echo "$ARCH_LIST"
+          echo "arch_list=$ARCH_LIST" >> $GITHUB_OUTPUT
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [generate-matrix]
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.generate-matrix.outputs.arch_list) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set Repository Lowercase
+        run: echo "REPOSITORY=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build individual images with Nix
+        run: |
+          nix build .#image-${{ matrix.os }}-${{ matrix.arch }}
+          docker load < ./result
+          docker tag rsground:${{ matrix.version }} ghcr.io/${{ env.REPOSITORY }}:${{ matrix.version }}-${{ matrix.os }}-${{ matrix.arch }}
+
+  docker-manifest:
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push manifest
+        run: nix run .#docker-manifest

@@ -16,6 +16,7 @@
     pkgs = import nixpkgs {inherit system;};
     lib = pkgs.lib;
     fenix = fenix-pkg.packages.${system};
+    architectures = import ./architectures.nix;
 
     rustToolchainDef = {
       channel = "1.88.0";
@@ -49,7 +50,9 @@
       wasm-pack
     ];
 
-    appPkg = (pkgs.makeRustPlatform {
+    mkPackage = { os, ... } @ variant: let
+      crossPkgs = mkCrossPkgs variant;
+    in (pkgs.makeRustPlatform {
       inherit (toolchain) cargo rustc;
     }).buildRustPackage (finalAttrs: {
       doCheck = false;
@@ -61,7 +64,11 @@
       src = ./.;
       cargoLock.lockFile = ./Cargo.lock;
 
-      env.OPENSSL_NO_VENDOR = 1;
+      env = {
+        OPENSSL_NO_VENDOR = 1;
+        HOST_CC = lib.optionalString (os != "windows") "${pkgs.stdenv.cc.nativePrefix}cc";
+        TARGET_CC = lib.optionalString (os != "windows") "${crossPkgs.stdenv.cc.targetPrefix}cc";
+      };
 
       nativeBuildInputs = [pkgs.pkg-config];
 
@@ -73,20 +80,75 @@
       ];
     });
 
-    containerPkg = pkgs.dockerTools.buildLayeredImage {
+    mkCrossPkgs = { arch, os, ... }: let
+      cross = arch + "-" + os;
+      crossSystem = lib.systems.elaborate cross;
+    in import nixpkgs {
+      crossSystem = if cross != "x86_64-linux" then crossSystem else null;
+      localSystem = system;
+    };
+
+    containerPkg = { arch, os, ... } @ variant: let
+      appPkg = mkPackage variant;
+      dockerPlatform =
+        if arch == "x86_64" then "amd64"
+        else if arch == "aarch64" then "arm64"
+        else if arch == "armv7l" then "arm"
+        else if arch == "armv6l" then "arm"
+        else if arch == "i686" then "386"
+        else throw "Unsupported arch: ${arch}";
+    in pkgs.dockerTools.buildLayeredImage {
+      inherit os;
+      created = "now";
       name = "rsground";
       tag = cargoManifest.package.version;
-      created = "now";
-      architecture = "amd64";
+      architecture = dockerPlatform;
 
       contents = [ appPkg ];
       config.Cmd = ["/bin/backend"];
     };
+
+    generatedMatrixJson = builtins.toJSON (lib.flatten (map ({ arch, os, ... }: {
+      inherit os arch;
+      package = "${os}-${arch}";
+      version = cargoManifest.package.version;
+    }) architectures));
   in {
-    packages.${system} = {
-        default = appPkg;
-        image = containerPkg;
+    apps.${system}.matrix = {
+      type = "app";
+      program = toString (pkgs.writeScript "generate-matrix" ''
+        #!/bin/sh
+        echo '${generatedMatrixJson}'
+      '');
     };
+
+    packages.${system} =
+      let
+        perArch =
+          lib.listToAttrs (map (variant: {
+            name = "image-${variant.os}-${variant.arch}";
+            value = containerPkg variant;
+          }) architectures);
+
+        perArchPkgs =
+          lib.listToAttrs (map (variant: {
+            name = "backend-${variant.os}-${variant.arch}";
+            value = mkPackage variant;
+          }) architectures);
+      in
+        perArch // perArchPkgs // {
+          docker-manifest = pkgs.writeShellScriptBin "docker-manifest" ''
+            set -euo pipefail
+            VERSION=${cargoManifest.package.version}
+            IMAGE="ghcr.io/$REPOSITORY:$VERSION"
+
+            docker manifest create "$IMAGE" ${lib.concatMapStringsSep " " (variant:
+              "--amend ghcr.io/$REPOSITORY:$VERSION-${variant.os}-${variant.arch}"
+            ) architectures}
+            docker manifest push "$IMAGE"
+          '';
+        };
+
     devShells.${system}.default = pkgs.mkShell {
       buildInputs =
         commonBuildInputs

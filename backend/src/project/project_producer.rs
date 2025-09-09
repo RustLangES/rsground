@@ -108,11 +108,22 @@ macro_rules! stream {
                         buf: msg,
                     })
                 })
-                .map_err(|err| log::error!(concat!("Cannot read ", stringify!($channel), ": {}"), err))
+                .map_err(|err| {
+                    log::error!(concat!("Cannot read ", stringify!($channel), ": {}"), err)
+                })
                 .for_each(async |_| {})
                 .await;
         }
     }};
+
+    (@err $mod:ident, $broadcast:ident, $project_id:ident) => {|err| {
+        local_log::$mod::error!(target: $project_id, "Failed: {err}");
+        _ = $broadcast.send(ServerMessage::SyncOutput {
+            channel: OutputChannel::Stderr,
+            buf: err.to_string().into_bytes(),
+        });
+        _ = $broadcast.send(ServerMessage::SyncOutputEnd { exit_code: 126 });
+    }}
 }
 
 impl Handler<Compile> for ProjectProducer {
@@ -132,20 +143,13 @@ impl Handler<Compile> for ProjectProducer {
             },
             async move |abort| {
                 let (status, _, _) = Runner::stream_output(
-                    &mut runner.cmd_bash("cargo", ["build", "--verbose"]),
+                    &mut runner.cmd_bash("cargo", ["build", "--color", "always"]),
                     stream!(broadcast, Stdout),
                     stream!(broadcast, Stderr),
                     Some(abort),
                 )
                 .await
-                .map_err(|err| {
-                    local_log::compile::error!(target: project_id, "Failed: {err}");
-                    _ = broadcast.send(ServerMessage::SyncOutput {
-                        channel: OutputChannel::Stderr,
-                        buf: err.to_string().into_bytes(),
-                    });
-                    _ = broadcast.send(ServerMessage::SyncOutputEnd { exit_code: 126 });
-                })?;
+                .map_err(stream!(@err compile, broadcast, project_id))?;
 
                 if !status.success() {
                     local_log::compile::error!(target: project_id, "Failed");
@@ -188,14 +192,7 @@ impl Handler<Patch> for ProjectProducer {
                 let output = runner
                     .patch_binary("/home/target/debug/rsground-main")
                     .await
-                    .map_err(|err| {
-                        local_log::patch::error!(target: project_id, "Failed: {err}");
-                        _ = broadcast.send(ServerMessage::SyncOutput {
-                            channel: OutputChannel::Stderr,
-                            buf: err.to_string().into_bytes(),
-                        });
-                        _ = broadcast.send(ServerMessage::SyncOutputEnd { exit_code: 126 });
-                    })?;
+                    .map_err(stream!(@err patch, broadcast, project_id))?;
 
                 if !output.status.success() {
                     local_log::patch::error!(target: project_id, "Failed: {output:#?}");
@@ -249,14 +246,7 @@ impl Handler<Run> for ProjectProducer {
                     Some(abort),
                 )
                 .await
-                .map_err(|err| {
-                    local_log::run::trace!(target: project_id, "Failed: {err}");
-                    _ = broadcast.send(ServerMessage::SyncOutput {
-                        channel: OutputChannel::Stderr,
-                        buf: err.to_string().into_bytes(),
-                    });
-                    _ = broadcast.send(ServerMessage::SyncOutputEnd { exit_code: 126 });
-                })?;
+                .map_err(stream!(@err run, broadcast, project_id))?;
 
                 local_log::run::trace!(target: project_id, "Finish");
 

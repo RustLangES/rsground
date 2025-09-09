@@ -22,6 +22,7 @@ export function rsLsp(file_path: string) {
     client: lsp_client,
     documentUri: "file:///home/" + file_path,
     languageId: "rust",
+    allowHTMLContent: true,
 
     // XXX: not needed really, but
     // this function force to provide it

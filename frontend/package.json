@@ -17,7 +17,7 @@
     "@codemirror/lang-rust": "^6.0.1",
     "@codemirror/language": "^6.11.0",
     "@codemirror/state": "^6.5.2",
-    "@codemirror/view": "^6.36.4",
+    "@codemirror/view": "^6.38.1",
     "@corvu/accordion": "^0.2.3",
     "@corvu/dialog": "^0.2.4",
     "@corvu/popover": "^0.2.0",
@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "@open-rpc/client-js": "^1.8.1",
-    "codemirror-languageserver": "^1.12.1",
+    "codemirror-languageserver": "^1.18.1",
     "events": "3.3.0",
     "frontend-wasm": "file:../frontend-wasm/pkg/",
     "solid-js": "^1.9.0"

@@ -41,6 +41,7 @@
     "vite-tsconfig-paths": "^5.1.4"
   },
   "dependencies": {
+    "@codemirror/commands": "6.8.1",
     "@open-rpc/client-js": "^1.8.1",
     "codemirror-languageserver": "^1.18.1",
     "events": "3.3.0",

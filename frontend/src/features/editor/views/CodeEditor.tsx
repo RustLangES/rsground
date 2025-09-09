@@ -8,7 +8,8 @@ import {
 } from "solid-js";
 import { CodeMirror } from "@solid-codemirror/codemirror";
 import { EditorView } from "codemirror";
-import { Decoration } from "@codemirror/view";
+import { indentWithTab } from "@codemirror/commands";
+import { Decoration, keymap } from "@codemirror/view";
 import { Compartment, EditorState } from "@codemirror/state";
 
 import { authInfo } from "@features/auth/stores";
@@ -110,12 +111,13 @@ export function CodeEditor(props: CodeEditorProps) {
         ...rustExtensions(styles),
         readOnly.of([]),
         cursors.of(EditorView.decorations.of(Decoration.set([]))),
+        keymap.of([indentWithTab]),
         syncExtension(file.data),
-        ...rsLsp(file_path)
+        ...rsLsp(file_path),
       ]}
       onEditorMount={(editor) => {
         setEditor(editor);
-        editor.setTabFocusMode(true);
+        editor.setTabFocusMode(false);
         syncExtensionListener(editor, file.data.fullPath);
 
         observable(projectAccess).subscribe((access) => {

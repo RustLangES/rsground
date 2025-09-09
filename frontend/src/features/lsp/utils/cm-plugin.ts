@@ -18,7 +18,7 @@ const lsp_client = new LanguageServerClient({
 export function rsLsp(file_path: string) {
   if (!file_path.endsWith(".rs")) return [];
 
-  return [languageServerWithTransport({
+  return languageServerWithTransport({
     client: lsp_client,
     documentUri: "file:///home/" + file_path,
     languageId: "rust",
@@ -29,5 +29,5 @@ export function rsLsp(file_path: string) {
     transport: undefined,
     rootUri: "",
     workspaceFolders: [],
-  })];
+  });
 }

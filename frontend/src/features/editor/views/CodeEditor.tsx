@@ -111,7 +111,7 @@ export function CodeEditor(props: CodeEditorProps) {
         readOnly.of([]),
         cursors.of(EditorView.decorations.of(Decoration.set([]))),
         syncExtension(file.data),
-        rsLsp()
+        ...rsLsp(file_path)
       ]}
       onEditorMount={(editor) => {
         setEditor(editor);

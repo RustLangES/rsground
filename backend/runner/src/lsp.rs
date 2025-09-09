@@ -52,7 +52,7 @@ impl LspInput {
 
     pub fn request<T: Request>(
         id: impl serde::Serialize,
-        params: T::Params,
+        params: &T::Params,
     ) -> Result<String, serde_json::Error> {
         serde_json::to_string(&serde_json::json!({
             "jsonrpc": JsonRpcVersion,

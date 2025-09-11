@@ -12,6 +12,7 @@
     ...
   }: let
     system = "x86_64-linux";
+    cargoManifest = builtins.fromTOML (builtins.readFile ./backend/Cargo.toml);
     pkgs = import nixpkgs {inherit system;};
     lib = pkgs.lib;
     fenix = fenix-pkg.packages.${system};
@@ -47,7 +48,44 @@
 
       wasm-pack
     ];
+
+    appPkg = (pkgs.makeRustPlatform {
+      inherit (toolchain) cargo rustc;
+    }).buildRustPackage (finalAttrs: {
+      doCheck = false;
+      pname = "backend";
+      version = cargoManifest.package.version;
+
+      cargoBuildFlags = ["-p" "backend"];
+
+      src = ./.;
+      cargoLock.lockFile = ./Cargo.lock;
+
+      env.OPENSSL_NO_VENDOR = 1;
+
+      nativeBuildInputs = [pkgs.pkg-config];
+
+      buildInputs = with pkgs; [
+        openssl
+      ] ++ lib.optionals stdenv.buildPlatform.isDarwin [
+        libiconv
+        cctools.libtool
+      ];
+    });
+    containerPkg = pkgs.dockerTools.buildLayeredImage rec {
+      name = "rsground";
+      tag = cargoManifest.package.version;
+      created = "now";
+      architecture = "amd64";
+
+      contents = [ appPkg ];
+      config.Cmd = ["/bin/${name}"];
+    };
   in {
+    packages.${system} = {
+        default = appPkg;
+        image = containerPkg;
+    };
     devShells.${system}.default = pkgs.mkShell {
       buildInputs =
         commonBuildInputs

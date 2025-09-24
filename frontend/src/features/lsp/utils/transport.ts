@@ -10,6 +10,11 @@ import { ERR_UNKNOWN } from "@open-rpc/client-js/build/Error";
 import { onWsMessage, sendMessage } from "@features/ws/services";
 import { ClientMessageKind, ServerMessageKind } from "@features/ws/types";
 
+const ignoredNotify = {
+  "textDocument/didOpen": "open",
+  "textDocument/didChange": "change",
+};
+
 export class RsLspTransport extends Transport {
   public async connect(): Promise<void> {
     onWsMessage(ServerMessageKind.Lsp, ({ data }) => {
@@ -22,7 +27,6 @@ export class RsLspTransport extends Transport {
     data: JSONRPCRequestData,
     timeout: number | null = 5000,
   ): Promise<void> {
-    let prom = this.transportRequestManager.addRequest(data, timeout);
     const notifications = getNotifications(data);
     try {
       const sendData = this.parseData(data);
@@ -31,11 +35,19 @@ export class RsLspTransport extends Transport {
         throw new Error("LSP Batch is not supported");
       }
 
+      if (ignoredNotify[sendData.method]) {
+        return;
+      }
+
+      let prom = this.transportRequestManager.addRequest(data, timeout);
+
       sendMessage(ClientMessageKind.Lsp, {
         data: sendData,
       });
 
       this.transportRequestManager.settlePendingRequest(notifications);
+
+      return prom;
     } catch (err) {
       const jsonError = new JSONRPCError(
         (err as any).message,
@@ -52,10 +64,8 @@ export class RsLspTransport extends Transport {
         jsonError,
       );
 
-      prom = Promise.reject(jsonError);
+      return Promise.reject(jsonError);
     }
-
-    return prom;
   }
 
   public close(): void {

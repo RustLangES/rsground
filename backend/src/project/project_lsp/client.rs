@@ -55,6 +55,10 @@ pub const LSP_INITIALIZATION: LazyLock<InitializeParams> = LazyLock::new(|| Init
             }),
             ..Default::default()
         }),
+        window: Some(WindowClientCapabilities {
+            work_done_progress: Some(true),
+            ..Default::default()
+        }),
         workspace: Some(WorkspaceClientCapabilities {
             did_change_configuration: Some(DynamicRegistrationClientCapabilities {
                 dynamic_registration: Some(true),

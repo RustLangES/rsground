@@ -27,8 +27,10 @@ const baseToast = SWAL.mixin({
   },
 });
 
+export type ToastKind = "debug" | "info" | "success" | "warn" | "error";
+
 export function showToast<T = any>(
-  kind: "debug" | "info" | "success" | "warn" | "error",
+  kind: ToastKind,
   options: SweetAlertOptions,
 ): ReturnType<typeof baseToast.fire<T>> {
   return baseToast.fire<T>({

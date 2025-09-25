@@ -9,6 +9,7 @@ import { Panels } from "@features/panels/views";
 import { Sidebar } from "@features/sidebar/views";
 
 import "@features/theme/stores"
+import { LoadingLsp } from "@features/lsp/views";
 
 const App: Component = () => {
   interceptAuthCallback();
@@ -20,6 +21,7 @@ const App: Component = () => {
     <>
       <Sidebar />
       <Panels />
+      <LoadingLsp />
     </>
   );
 };

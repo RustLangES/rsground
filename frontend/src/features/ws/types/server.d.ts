@@ -25,7 +25,7 @@ export type ServerMessage<S extends ServerMessageKind = ServerMessageKind> = {
   };
   [ServerMessageKind.Lsp]: {
     action: ServerMessageKind.Lsp;
-    data: unknown;
+    data: object;
   };
   [ServerMessageKind.ProjectConfig]: {
     action: ServerMessageKind.ProjectConfig;

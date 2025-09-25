@@ -29,6 +29,9 @@ importers:
       solid-js:
         specifier: ^1.9.0
         version: 1.9.5
+      vscode-languageserver-protocol:
+        specifier: ^3.17.5
+        version: 3.17.5
     devDependencies:
       '@codemirror/autocomplete':
         specifier: ^6.18.6

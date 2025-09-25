@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::collab::{Document, DocumentInfo, UserOperation};
 use crate::project::AccessLevel;
-use crate::utils::{ArcStr, Truncate, Truncated};
+use crate::utils::{ArcStr, Truncate};
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]

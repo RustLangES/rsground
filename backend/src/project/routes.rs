@@ -85,8 +85,6 @@ pub async fn create_project(
 
     project.permit_access(user_info.id.clone(), AccessLevel::Editor);
 
-    project.start_lsp().await;
-
     Ok(HttpResponse::Created().json(json!({
         "id": project.id
     })))

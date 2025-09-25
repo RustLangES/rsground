@@ -40,10 +40,16 @@ impl RgWebsocket {
             };
             let mut project = project.write().await;
 
+            let access = project.join_project(user_info.id.clone(), password)?;
+
+            if access.can_read() {
+                project.start_lsp().await;
+            }
+
             (
                 project.internal.subscribe(),
                 project.broadcast.subscribe(),
-                project.join_project(user_info.id.clone(), password)?,
+                access,
             )
         };
 

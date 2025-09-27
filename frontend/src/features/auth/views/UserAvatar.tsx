@@ -1,7 +1,6 @@
 import { createMemo, Show } from "solid-js";
-import { SolidUserIcon } from "@icons/SolidUser";
 
-import { authInfo } from "../stores";
+import { authInfo, guestAvatar } from "../stores";
 
 import styles from "./UserAvatar.module.sass";
 
@@ -14,7 +13,7 @@ export function RawUserAvatar() {
         <img class={styles.raw_avatar_img} src={authInfo()?.avatar_url} />
       </Show>
       <Show when={!has_avatar()}>
-        <SolidUserIcon height="100%" width="100%" />
+        <img class={styles.guest_avatar_img} src={guestAvatar()} />
       </Show>
     </>
   );

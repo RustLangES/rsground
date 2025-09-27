@@ -1,8 +1,10 @@
-import { createSignal, observable } from "solid-js";
+import { createSignal } from "solid-js";
 import { AuthInfo } from "../types";
-import { createLocalStoredSignal } from "@utils/createLocalStoredSignal";
+import { createLocalStoredSignal, createSessionStoredSignal } from "@utils/createLocalStoredSignal";
+import { randomAvatar } from "../utils";
 
 export const AUTH_KEY = "auth";
+export const AVATAR_KEY = "auth.avatar";
 
 export const [authInfo, setAuthInfo] = createLocalStoredSignal<AuthInfo | null>(
   AUTH_KEY,
@@ -11,15 +13,13 @@ export const [authInfo, setAuthInfo] = createLocalStoredSignal<AuthInfo | null>(
   (v) => JSON.stringify(v)
 );
 
+export const [guestAvatar, _] = createSessionStoredSignal<string>(
+  AVATAR_KEY,
+  randomAvatar(),
+  (v) => v,
+  (v) => v
+);
+
 export const isGithubLogged = () => !!authInfo()?.avatar_url;
 
 export const [isLoadingAuthInfo, setIsLoadingAuthInfo] = createSignal(false);
-
-// Sync auth info in local storage
-observable(authInfo).subscribe((authInfo) => {
-  if (authInfo) {
-    window.localStorage.setItem(AUTH_KEY, JSON.stringify(authInfo));
-  } else {
-    window.localStorage.removeItem(AUTH_KEY);
-  }
-});

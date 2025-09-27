@@ -1,6 +1,7 @@
 import { createSignal, observable, Signal } from "solid-js";
 
-export function createLocalStoredSignal<T>(
+export function createStoredSignal<T>(
+  storage: Storage,
   key: string,
   _default: T,
   des: (v: string) => T,
@@ -8,7 +9,7 @@ export function createLocalStoredSignal<T>(
 ): Signal<T> {
   let prevValue: T = _default;
   try {
-    const stored = window.localStorage.getItem(key);
+    const stored = storage.getItem(key);
 
     if (stored) {
       prevValue = des(stored);
@@ -22,11 +23,29 @@ export function createLocalStoredSignal<T>(
 
   observable(value).subscribe((value) => {
     if (value != null) {
-      window.localStorage.setItem(key, ser(value));
+      storage.setItem(key, ser(value));
     } else {
-      window.localStorage.removeItem(key);
+      storage.removeItem(key);
     }
   });
 
   return [value, setValue];
+}
+
+export function createLocalStoredSignal<T>(
+  key: string,
+  _default: T,
+  des: (v: string) => T,
+  ser: (v: T) => string,
+): Signal<T> {
+  return createStoredSignal(window.localStorage, key, _default, des, ser);
+}
+
+export function createSessionStoredSignal<T>(
+  key: string,
+  _default: T,
+  des: (v: string) => T,
+  ser: (v: T) => string,
+): Signal<T> {
+  return createStoredSignal(window.sessionStorage, key, _default, des, ser);
 }

@@ -6,7 +6,7 @@ export function generateRandomName(): string {
   return firstName + lastName + number
 }
 
-// You can contribute with fun names.
+// Feel free to contribute with fun names.
 // Please keep the alphanumeric sort
 
 /** adjectives */

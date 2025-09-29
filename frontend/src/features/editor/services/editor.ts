@@ -18,12 +18,20 @@ export async function openFile(filepath: string) {
   const id = `file:${filepath}`;
   const filename = filepath.split("/").pop();
 
-  if (!untrack(dockview).getPanel(id)) {
-    untrack(dockview).addPanel({
+  const dockview_ = untrack(dockview);
+  if (!dockview_.getPanel(id)) {
+    const nearestPanel = dockview_.panels.find((p) => p.id != "output") ??
+      dockview_.activePanel;
+    const isNearestPanelOutput = dockview_.activePanel.id == "output";
+
+    dockview_.addPanel({
       id,
       component: "code",
       title: filename,
-      position: { direction: "above", referencePanel: "output" },
+      position: {
+        direction: isNearestPanelOutput ? "above" : "within",
+        referencePanel: nearestPanel,
+      },
     });
   }
 }

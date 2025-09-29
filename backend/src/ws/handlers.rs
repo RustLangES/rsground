@@ -367,7 +367,6 @@ impl RgWebsocket {
 
                 let project = self.app_state.get_project(self.project_id).await?;
                 let mut project = project.write().await;
-                let runner = project.get_runner();
 
                 let doc = project.get_file(&file).ok_or_else(|| {
                     local_log::sync::error!("File {file:?} not found in {:?}", self.project_id);
@@ -383,14 +382,7 @@ impl RgWebsocket {
                         .send(ServerMessage::Error { message: err })
                 }
 
-                _ = runner
-                    .create_file(&file, &doc.text().await)
-                    .await
-                    .inspect_err(|err| log::error!("{err}"));
-
-                _ = project
-                    .internal
-                    .send(InternalMessage::FileEdit { path: file });
+                project.file_edit(file, doc.text().await).await;
 
                 Err(ServerMessageError::None)
             }

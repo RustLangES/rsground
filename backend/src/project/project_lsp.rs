@@ -1,6 +1,7 @@
 mod client;
 mod server;
 
+use std::collections::VecDeque;
 use std::io::{self, Write};
 use std::sync::Arc;
 
@@ -17,7 +18,7 @@ use rsground_runner::{PipeWriter, Runner};
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
-use crate::utils::{define_local_logger, ArcStr};
+use crate::utils::{define_local_logger, ArcStr, Truncate};
 use crate::ws::messages::InternalMessage;
 
 use super::project_runner::{start_job, AbortSender};
@@ -36,10 +37,12 @@ define_local_logger!(local_log as "backend::lsp" {
 const LSP_INITIALIZATION_ID: &str = "rsground::initialize";
 
 pub struct ProjectLsp {
-    project_id: Uuid,
     broadcast: broadcast::Sender<InternalMessage>,
-    runner: Arc<Runner>,
     instance: Option<(AbortSender, PipeWriter)>,
+    project_id: Uuid,
+    queue: VecDeque<Stdin>,
+    ready: bool,
+    runner: Arc<Runner>,
 }
 
 impl ProjectLsp {
@@ -49,10 +52,12 @@ impl ProjectLsp {
         runner: Arc<Runner>,
     ) -> Addr<Self> {
         let project_lsp = Self {
-            project_id,
             broadcast,
-            runner,
             instance: None,
+            project_id,
+            queue: VecDeque::new(),
+            ready: false,
+            runner,
         };
 
         project_lsp.start()
@@ -63,6 +68,39 @@ impl Actor for ProjectLsp {
     type Context = Context<ProjectLsp>;
 }
 
+pub trait ProjectLspActor {
+    fn send_request<T: Request, const QUEUE: bool>(
+        &self,
+        id: impl serde::Serialize,
+        params: &T::Params,
+    );
+    fn send_notify<T: Notification, const QUEUE: bool>(&self, params: &T::Params);
+}
+
+impl ProjectLspActor for Addr<ProjectLsp> {
+    fn send_request<T: Request, const QUEUE: bool>(
+        &self,
+        id: impl serde::Serialize,
+        params: &T::Params,
+    ) {
+        match LspInput::request::<T>(id, params) {
+            Ok(req) => self.do_send(Stdin::<QUEUE>(req)),
+            Err(err) => {
+                local_log::stdin::error!("Serialize: {err:?}");
+            }
+        }
+    }
+
+    fn send_notify<T: Notification, const QUEUE: bool>(&self, params: &T::Params) {
+        match LspInput::notify::<T>(params) {
+            Ok(req) => self.do_send(Stdin::<QUEUE>(req)),
+            Err(err) => {
+                local_log::stdin::error!("Serialize: {err:?}");
+            }
+        }
+    }
+}
+
 // Client-side messages
 
 #[derive(Message)]
@@ -71,7 +109,7 @@ pub struct Execute;
 
 #[derive(Message)]
 #[rtype(result = "()")]
-pub struct Stdin(String);
+pub struct Stdin<const QUEUE: bool = true>(String);
 
 #[derive(Message)]
 #[rtype(result = "()")]
@@ -103,19 +141,10 @@ impl Handler<Execute> for ProjectLsp {
             move |abort, this, ctx| {
                 this.instance.replace((abort, stdin));
 
-                match LspInput::request::<Initialize>(
+                ctx.address().send_request::<Initialize, false>(
                     LSP_INITIALIZATION_ID,
                     &*client::LSP_INITIALIZATION,
-                ) {
-                    Ok(req) => {
-                        local_log::initialize::info!(target: this.project_id, "Initialize sended");
-                        ctx.notify(Stdin(req))
-                    }
-                    Err(err) => {
-                        local_log::initialize::error!(target: this.project_id, "{err:?}");
-                        ctx.notify(Kill);
-                    }
-                }
+                );
             },
             async move |abort| child.wait_or_abort(abort).await,
             |_, this, _| {
@@ -132,21 +161,26 @@ impl Handler<Kill> for ProjectLsp {
     type Result = ();
 
     fn handle(&mut self, _: Kill, _: &mut Self::Context) -> Self::Result {
+        self.ready = false;
         if let Some((abort, _)) = self.instance.take() {
             _ = abort.send(());
         }
     }
 }
 
-impl Handler<Stdin> for ProjectLsp {
+impl<const QUEUE: bool> Handler<Stdin<QUEUE>> for ProjectLsp {
     type Result = ();
 
-    fn handle(&mut self, Stdin(msg): Stdin, _: &mut Self::Context) -> Self::Result {
-        if let Some((_, stdin)) = self.instance.as_mut() {
-            let msg = format!("Content-Length: {}\r\n\r\n{msg}", msg.len());
-            if let Err(err) = stdin.write_all(msg.as_bytes()).and_then(|_| stdin.flush()) {
-                local_log::stdin::error!(target: self.project_id, "Cannot write: {err}")
+    fn handle(&mut self, Stdin(msg): Stdin<QUEUE>, _: &mut Self::Context) -> Self::Result {
+        if !QUEUE || self.ready {
+            if let Some((_, stdin)) = self.instance.as_mut() {
+                let msg = format!("Content-Length: {}\r\n\r\n{msg}", msg.len());
+                if let Err(err) = stdin.write_all(msg.as_bytes()).and_then(|_| stdin.flush()) {
+                    local_log::stdin::error!(target: self.project_id, "Cannot write: {err}")
+                }
             }
+        } else {
+            self.queue.push_back(Stdin(msg));
         }
     }
 }
@@ -229,7 +263,7 @@ impl Handler<ClientStdin> for ProjectLsp {
             return;
         };
 
-        ctx.notify(Stdin(msg));
+        ctx.notify(Stdin::<true>(msg));
     }
 }
 
@@ -248,9 +282,16 @@ impl StreamHandler<Stdout> for ProjectLsp {
             LspOutput::Response(res) if res.id() == LSP_INITIALIZATION_ID => match res {
                 LspResponse::Ok { result, .. } => {
                     local_log::initialize::info!(target: self.project_id, "Initialize received");
-                    local_log::initialize::trace!(target: self.project_id, "{result:?}");
-                    if let Ok(noti) = LspInput::notify::<Initialized>(InitializedParams {}) {
-                        ctx.notify(Stdin(noti));
+                    local_log::initialize::trace!(target: self.project_id, "{:?}", result.truncate::<256>());
+
+                    self.ready = true;
+
+                    if let Ok(noti) = LspInput::notify::<Initialized>(&InitializedParams {}) {
+                        ctx.notify(Stdin::<false>(noti));
+                    }
+
+                    while let Some(msg) = self.queue.pop_front() {
+                        ctx.notify(msg);
                     }
                 }
                 LspResponse::Err { error, .. } => {
@@ -260,7 +301,7 @@ impl StreamHandler<Stdout> for ProjectLsp {
             },
 
             LspOutput::Response(res) => {
-                local_log::response::trace!(target: self.project_id, "{res:?}");
+                local_log::response::trace!(target: self.project_id, "{:?}", (&res).truncate::<256>());
                 let (client_id, res_id) = res
                     .id()
                     .clone()

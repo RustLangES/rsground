@@ -111,7 +111,7 @@ pub const LSP_INITIALIZATION: LazyLock<InitializeResult> = LazyLock::new(|| Init
         }),
         text_document_sync: Some(TextDocumentSyncCapability::Options(
             TextDocumentSyncOptions {
-                change: Some(TextDocumentSyncKind::INCREMENTAL),
+                change: Some(TextDocumentSyncKind::FULL),
                 open_close: Some(true),
                 save: Some(TextDocumentSyncSaveOptions::SaveOptions(
                     SaveOptions::default(),

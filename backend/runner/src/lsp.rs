@@ -19,7 +19,7 @@ pub struct LspInput;
 
 impl LspInput {
     pub fn notify_value<T: Notification>(
-        params: T::Params,
+        params: &T::Params,
     ) -> Result<serde_json::Value, serde_json::Error> {
         Ok(serde_json::json!({
             "jsonrpc": JsonRpcVersion,
@@ -28,7 +28,7 @@ impl LspInput {
         }))
     }
 
-    pub fn notify<T: Notification>(params: T::Params) -> Result<String, serde_json::Error> {
+    pub fn notify<T: Notification>(params: &T::Params) -> Result<String, serde_json::Error> {
         serde_json::to_string(&Self::notify_value::<T>(params)?)
     }
 

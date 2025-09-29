@@ -1,8 +1,14 @@
 use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
 use std::sync::Arc;
 
 use actix::Addr;
 use futures::StreamExt;
+use rsground_runner::lsp::notification::{DidChangeTextDocument, DidOpenTextDocument};
+use rsground_runner::lsp::{
+    DidChangeTextDocumentParams, DidOpenTextDocumentParams, TextDocumentContentChangeEvent,
+    TextDocumentItem, Uri, VersionedTextDocumentIdentifier,
+};
 use rsground_runner::Runner;
 use tokio::sync::broadcast;
 use uuid::Uuid;
@@ -10,6 +16,7 @@ use uuid::Uuid;
 use crate::auth::jwt::RgUserData;
 use crate::collab::{Document, DocumentInfo};
 use crate::http_errors::HttpErrors;
+use crate::project::project_lsp::ProjectLspActor;
 use crate::utils::{ArcStr, AsyncDefault, AsyncInto, ToStream, EMPTY_STR};
 use crate::ws::messages::{InternalMessage, ServerMessage};
 
@@ -29,6 +36,7 @@ pub struct Project {
     runner: Arc<Runner>,
     producer: Addr<producer::ProjectProducer>,
     lsp: Addr<lsp::ProjectLsp>,
+    lsp_started: bool,
 }
 
 impl AsyncDefault for Project {
@@ -58,6 +66,7 @@ impl AsyncDefault for Project {
             runner,
             producer,
             lsp,
+            lsp_started: false,
         }
     }
 }
@@ -79,8 +88,33 @@ impl Project {
         &self.lsp
     }
 
-    pub async fn start_lsp(&self) {
+    pub async fn start_lsp(&mut self) {
+        if self.lsp_started {
+            return;
+        }
+
+        self.lsp_started = true;
+
         self.lsp.do_send(lsp::Execute);
+
+        for (file, doc) in &self.documents {
+            let version = doc.revision().await as i32;
+            let text = doc.text().await;
+
+            let Ok(uri) = Uri::from_str(&format!("file:///home/{file}")) else {
+                continue;
+            };
+
+            self.lsp
+                .send_notify::<DidOpenTextDocument, true>(&DidOpenTextDocumentParams {
+                    text_document: TextDocumentItem {
+                        uri,
+                        language_id: "rust".to_owned(),
+                        version,
+                        text,
+                    },
+                });
+        }
     }
 
     pub async fn execute(&self) {
@@ -110,12 +144,25 @@ impl Project {
 
     pub async fn add_file(&mut self, path: impl Into<ArcStr>, document: Document) -> Arc<Document> {
         let path: ArcStr = path.into();
+        let content = document.text().await;
 
         _ = self
             .get_runner()
-            .create_file(&path.to_string(), &document.text().await)
+            .create_file(&path.to_string(), &content)
             .await
             .inspect_err(|err| project_log::error!("{err}"));
+
+        if let Ok(uri) = Uri::from_str(&format!("file:///home/{path}")) {
+            self.lsp
+                .send_notify::<DidOpenTextDocument, true>(&DidOpenTextDocumentParams {
+                    text_document: TextDocumentItem {
+                        uri,
+                        language_id: "rust".to_owned(),
+                        version: 0,
+                        text: content,
+                    },
+                });
+        }
 
         self.documents
             .entry(path)
@@ -125,7 +172,36 @@ impl Project {
     }
 
     pub fn rm_file(&mut self, path: impl AsRef<str>) -> Option<Arc<Document>> {
+        // TODO: (@Brayan-724) Remove real file and notify lsp
         self.documents.remove(path.as_ref())
+    }
+
+    pub async fn file_edit(&mut self, path: ArcStr, content: impl AsRef<str>) {
+        _ = self
+            .runner
+            .create_file(&path, content.as_ref())
+            .await
+            .inspect_err(|err| log::error!("{err}"));
+
+        if let Ok(uri) = Uri::from_str(&format!("file:///home/{path}")) {
+            let version = if let Some(doc) = self.documents.get(&path) {
+                doc.revision().await as i32
+            } else {
+                0
+            };
+
+            self.lsp
+                .send_notify::<DidChangeTextDocument, true>(&DidChangeTextDocumentParams {
+                    text_document: VersionedTextDocumentIdentifier { uri, version },
+                    content_changes: vec![TextDocumentContentChangeEvent {
+                        range: None,
+                        range_length: None,
+                        text: content.as_ref().to_owned(),
+                    }],
+                });
+        }
+
+        _ = self.internal.send(InternalMessage::FileEdit { path });
     }
 
     /// Get all file paths

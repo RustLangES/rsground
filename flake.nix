@@ -19,8 +19,8 @@
     architectures = import ./architectures.nix;
 
     rustToolchainDef = {
-      channel = "1.88.0";
-      sha256 = "sha256-Qxt8XAuaUR2OMdKbN4u8dBJOhSHxS+uS06Wl9+flVEk=";
+      channel = "1.90.0";
+      sha256 = "sha256-SJwZ8g0zF2WrKDVmHrVG3pD2RGoQeo24MEXnNx5FyuI=";
     };
     toolchain = fenix.toolchainOf rustToolchainDef;
     wasmToolchain = fenix.targets.wasm32-unknown-unknown.toolchainOf rustToolchainDef;

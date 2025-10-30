@@ -88,7 +88,7 @@
       localSystem = system;
     };
 
-    containerPkg = { arch, os, ... } @ variant: let
+    containerPkg = { arch, ... } @ variant: let
       appPkg = mkPackage variant;
       dockerPlatform =
         if arch == "x86_64" then "amd64"
@@ -98,7 +98,6 @@
         else if arch == "i686" then "386"
         else throw "Unsupported arch: ${arch}";
     in pkgs.dockerTools.buildLayeredImage {
-      inherit os;
       created = "now";
       name = "rsground";
       tag = cargoManifest.package.version;
@@ -120,6 +119,9 @@
         #!/bin/sh
         echo '${generatedMatrixJson}'
       '');
+      meta = {
+          description = "support matrix for CI";
+      };
     };
 
     packages.${system} =

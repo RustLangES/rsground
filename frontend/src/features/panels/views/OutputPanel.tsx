@@ -1,15 +1,20 @@
 import { For } from "solid-js/web";
+import { createSignal, onMount, Show } from "solid-js";
 
 import { onWsMessage, sendMessage } from "@features/ws/services";
 import { ClientMessageKind, ServerMessageKind } from "@features/ws/types";
 import { PlayIcon } from "@icons/Play";
 import { SkullIcon } from "@icons/Skull";
 
+import {
+  outputCarrier,
+  outputPanel,
+  setOutputCarrier,
+  setOutputPanel,
+} from "../stores";
 import { ansiToHtml } from "../utils";
-import { outputPanel, setOutputPanel } from "../stores";
 
 import styles from "./OutputPanel.module.sass";
-import { createSignal, onMount, Show } from "solid-js";
 
 const decoder = new TextDecoder();
 
@@ -20,23 +25,20 @@ export function OutputPanel() {
 
   onWsMessage(ServerMessageKind.SyncOutputStart, () => {
     setOutputPanel([]);
+    setOutputCarrier("");
   });
 
   onWsMessage(ServerMessageKind.SyncOutput, (msg) => {
     const decoded = decoder.decode(new Uint8Array(msg.buf));
 
-    if (
-      outputPanel.length === 0 ||
-      outputPanel[outputPanel.length - 1].length >= 1024
-    ) {
-      setOutputPanel(outputPanel.length, decoded);
-    } else {
-      setOutputPanel(outputPanel.length - 1, (prev) => prev + decoded);
-    }
+    const [node, carrier] = ansiToHtml(outputCarrier + decoded);
+
+    setOutputCarrier(carrier);
+    setOutputPanel(outputPanel.length, node);
   });
 
   onWsMessage(ServerMessageKind.SyncOutputEnd, (msg) => {
-    setExitCode(msg.exit_code)
+    setExitCode(msg.exit_code);
   });
 
   return (
@@ -77,7 +79,7 @@ export function OutputPanel() {
 
       <div ref={contentRef} class={styles.output}>
         <For each={outputPanel}>
-          {(buf) => {
+          {(node) => {
             onMount(() => {
               const target = contentRef.scrollHeight - contentRef.clientHeight;
 
@@ -85,7 +87,8 @@ export function OutputPanel() {
                 contentRef.scrollTop = target;
               }
             });
-            return ansiToHtml(buf);
+
+            return node;
           }}
         </For>
       </div>

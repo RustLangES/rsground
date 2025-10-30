@@ -1,3 +1,11 @@
 import { createStore } from "solid-js/store";
 
-export const [outputPanel, setOutputPanel] = createStore<Array<string>>([]);
+// All rendered nodes
+export const [outputPanel, setOutputPanel] = createStore<Array<HTMLElement>>([]);
+
+/** Unprocessed part of malformed ansi code */
+export let outputCarrier: string = "";
+
+export function setOutputCarrier(carrier: string) {
+  outputCarrier = carrier;
+}

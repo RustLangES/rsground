@@ -44,7 +44,7 @@ const ANSI_8_BIT_COLORS = {
   [107]: styles.back_bright_white,
 };
 
-export function ansiToHtml(text: string): HTMLElement {
+export function ansiToHtml(text: string): [node: HTMLElement, carrier: string] {
   let node = <pre class={styles.mods_reset} /> as HTMLElement;
 
   let remaining = text;
@@ -56,17 +56,34 @@ export function ansiToHtml(text: string): HTMLElement {
   let accumulatedContent = "";
 
   while (lastIndex !== -1) {
-    // Append the raw text until the escape code
-    const content = remaining.substring(0, lastIndex);
-    lastNode.append(content);
-
     // Collect the ansi code
     const mIndex = remaining.indexOf("m", lastIndex);
     const ansiCode = remaining.substring(lastIndex + 2, mIndex);
 
-    // Append the span with code, or replace it
-    // if it's just whitespace - 30% less nodes
-    if (accumulatedContent.trimStart().length) {
+    // if is last malformed ansi code, return current node
+    // collection and send the remaining as carrier
+    if (mIndex === -1) {
+      const remaining_peek = remaining.substring(lastIndex + 1);
+      lastIndex = remaining_peek.indexOf("\x1b");
+
+      const isLastAnsi = lastIndex === -1;
+
+      if (isLastAnsi) {
+        return [node, remaining.substring(lastIndex)];
+      }
+
+      remaining = remaining_peek;
+
+      continue;
+    }
+
+    // Append the raw text until the escape code
+    const content = remaining.substring(0, lastIndex);
+    lastNode.append(content);
+
+    // Append the span with code, or replace it if it's just
+    // whitespace, ~30% less nodes
+    if (accumulatedContent.split("").some(c => c !== " ")) {
       accumulatedContent += content;
     } else {
       accumulatedContent = content;
@@ -82,9 +99,10 @@ export function ansiToHtml(text: string): HTMLElement {
       // Add node only if there are non-whitespace characters
       // Reduce children depth
       if (accumulatedContent.length) {
+
         if (newNode.dataset["ansi"] == "0") {
           node.append(newNode);
-        } else {
+        } else if (newNode !== lastNode) {
           lastNode.append(newNode);
         }
         lastNode = newNode;
@@ -102,11 +120,7 @@ export function ansiToHtml(text: string): HTMLElement {
   // Append remaining raw text
   lastNode.append(remaining);
 
-  if (import.meta.env.DEV) {
-    console.log("Output Nodes:", node.getElementsByTagName("span").length);
-  }
-
-  return node;
+  return [node, ""];
 }
 
 function addAnsiStyles(node: HTMLElement, ansiCode: string) {

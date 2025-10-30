@@ -34,3 +34,13 @@ Your app is ready to be deployed!
 ## Deployment
 
 You can deploy the `dist` folder to any static host provider (netlify, surge, now, etc.)
+
+> Maybe change toasts to [solid-toasts](https://www.solid-toast.com)
+
+**References:**
+- https://github.com/pr2502/ra-multiplex
+- https://github.com/open-rpc/client-js/blob/master/src/transports/TransportRequestManager.ts
+- https://github.com/FurqanSoftware/codemirror-languageserver
+- https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification
+
+- https://man7.org/linux/man-pages/man2/getrlimit.2.html

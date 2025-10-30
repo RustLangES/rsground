@@ -15,6 +15,10 @@ use std::path::{Path, PathBuf};
 use tokio::sync::oneshot;
 use tokio::{fs, io};
 
+const KB: u64 = 1024;
+const MB: u64 = 1024 * KB;
+const GB: u64 = 1024 * MB;
+
 pub const BASE_ENV: [(&str, &str); 3] = [
     ("HOME", "/home"),
     ("PATH", "/bin"),
@@ -50,6 +54,7 @@ impl Runner {
             .bindmount_rw(temp_home, "/home")
             // FIXME: This needs to set resource limit
             // .setrlimit(hakoniwa::Rlimit::*, soft_limit, hard_limit)
+            .setrlimit(hakoniwa::Rlimit::As, 3 * GB, 3 * GB + 512 * MB)
             .clone()
     }
 

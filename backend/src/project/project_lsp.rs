@@ -147,7 +147,8 @@ impl Handler<Execute> for ProjectLsp {
                 );
             },
             async move |abort| child.wait_or_abort(abort).await,
-            |_, this, _| {
+            |status, this, _| {
+                local_log::debug!(target: this.project_id, "Exit status: {status:?}");
                 drop(this.instance.take());
             },
         );

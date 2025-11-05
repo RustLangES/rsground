@@ -5,7 +5,7 @@ use futures::StreamExt as _;
 
 use crate::collab::Document;
 use crate::project::{self, AccessLevel};
-use crate::utils::{define_local_logger, ArcStr, ToStream};
+use crate::utils::{ArcStr, ToStream, define_local_logger};
 use crate::ws::messages::{ClientMessage, ServerMessage, ServerMessageError};
 use crate::ws::ws_ext::SessionExt;
 

@@ -33,6 +33,8 @@ impl HakoniwaChildExt for Child {
                 reason: "Life is good".to_owned(),
                 exit_code: None,
                 rusage: None,
+                proc_pid_status: None,
+                proc_pid_smaps_rollup: None,
             }),
             Ok(WaitStatus::Signaled(_, signal, _) | WaitStatus::Stopped(_, signal)) => {
                 Some(ExitStatus {
@@ -40,6 +42,8 @@ impl HakoniwaChildExt for Child {
                     reason: signal.as_str().to_owned(),
                     exit_code: None,
                     rusage: None,
+                    proc_pid_status: None,
+                    proc_pid_smaps_rollup: None,
                 })
             }
             Ok(WaitStatus::Continued(_)) => None,
@@ -79,6 +83,8 @@ impl HakoniwaChildExt for Child {
                         reason: "Aborted".to_owned(),
                         exit_code: None,
                         rusage: None,
+                        proc_pid_status: None,
+                        proc_pid_smaps_rollup: None,
                     };
                 },
             }
@@ -86,7 +92,7 @@ impl HakoniwaChildExt for Child {
     }
 }
 
-pub struct AsyncOsReader(Async<os_pipe::PipeReader>);
+pub struct AsyncOsReader(Async<io::PipeReader>);
 
 impl AsyncOsReader {
     /// N is the buffer size for reads
@@ -103,8 +109,8 @@ impl AsyncOsReader {
     }
 }
 
-impl From<os_pipe::PipeReader> for AsyncOsReader {
-    fn from(value: os_pipe::PipeReader) -> Self {
+impl From<io::PipeReader> for AsyncOsReader {
+    fn from(value: io::PipeReader) -> Self {
         Self(Async::new(value).expect("Cannot create async wrapper"))
     }
 }
@@ -116,7 +122,7 @@ impl AsFd for AsyncOsReader {
 }
 
 impl ops::Deref for AsyncOsReader {
-    type Target = os_pipe::PipeReader;
+    type Target = io::PipeReader;
 
     fn deref(&self) -> &Self::Target {
         &self.0.get_ref()
@@ -163,19 +169,19 @@ impl<const N: usize> Stream for AsyncOsReaderStream<N> {
 }
 
 pub struct LspStdoutReader {
-    inner: Async<os_pipe::PipeReader>,
+    inner: Async<io::PipeReader>,
     filled: usize,
     buf: Option<Vec<u8>>,
 }
 
 impl LspStdoutReader {
-    fn inner(&self) -> &Async<os_pipe::PipeReader> {
+    fn inner(&self) -> &Async<io::PipeReader> {
         &self.inner
     }
 }
 
-impl From<os_pipe::PipeReader> for LspStdoutReader {
-    fn from(value: os_pipe::PipeReader) -> Self {
+impl From<io::PipeReader> for LspStdoutReader {
+    fn from(value: io::PipeReader) -> Self {
         Self {
             inner: Async::new(value).expect("Cannot create async wrapper"),
             filled: 0,
@@ -191,7 +197,7 @@ impl AsFd for LspStdoutReader {
 }
 
 impl ops::Deref for LspStdoutReader {
-    type Target = os_pipe::PipeReader;
+    type Target = io::PipeReader;
 
     fn deref(&self) -> &Self::Target {
         &self.inner().get_ref()

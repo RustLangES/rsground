@@ -152,12 +152,10 @@
         };
 
     devShells.${system}.default = pkgs.mkShell {
-      buildInputs =
+      packages =
         commonBuildInputs
         ++ backendBuildInputs
         ++ frontendBuildInputs;
-
-      nativeBuildInputs = [pkgs.pkg-config];
 
       LIBSECCOMP_LIB_PATH = "${lib.makeLibraryPath [pkgs.libseccomp]}";
       LD_LIBRARY_PATH = "${lib.makeLibraryPath [pkgs.libseccomp]}";

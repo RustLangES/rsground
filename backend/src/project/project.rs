@@ -4,12 +4,12 @@ use std::sync::Arc;
 
 use actix::Addr;
 use futures::StreamExt;
+use rsground_runner::Runner;
 use rsground_runner::lsp::notification::{DidChangeTextDocument, DidOpenTextDocument};
 use rsground_runner::lsp::{
     DidChangeTextDocumentParams, DidOpenTextDocumentParams, TextDocumentContentChangeEvent,
     TextDocumentItem, Uri, VersionedTextDocumentIdentifier,
 };
-use rsground_runner::Runner;
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
@@ -17,10 +17,10 @@ use crate::auth::jwt::RgUserData;
 use crate::collab::{Document, DocumentInfo};
 use crate::http_errors::HttpErrors;
 use crate::project::project_lsp::ProjectLspActor;
-use crate::utils::{ArcStr, AsyncDefault, AsyncInto, ToStream, EMPTY_STR};
+use crate::utils::{ArcStr, AsyncDefault, AsyncInto, EMPTY_STR, ToStream};
 use crate::ws::messages::{InternalMessage, ServerMessage};
 
-use super::{lsp, producer, project_log, AccessLevel};
+use super::{AccessLevel, lsp, producer, project_log};
 
 pub struct Project {
     pub id: Uuid,
@@ -152,7 +152,9 @@ impl Project {
             .await
             .inspect_err(|err| project_log::error!("{err}"));
 
-        if let Ok(uri) = Uri::from_str(&format!("file:///home/{path}")) {
+        if path.ends_with("rs")
+            && let Ok(uri) = Uri::from_str(&format!("file:///home/{path}"))
+        {
             self.lsp
                 .send_notify::<DidOpenTextDocument, true>(&DidOpenTextDocumentParams {
                     text_document: TextDocumentItem {

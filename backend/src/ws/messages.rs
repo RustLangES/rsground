@@ -263,7 +263,7 @@ fn fmt_lsp_msg(f: &mut fmt::Formatter<'_>, data: &serde_json::Value) -> fmt::Res
                     .debug_tuple("Lsp::Response::Err")
                     .field(&format_args!("{id}"))
                     .field(&error.truncate::<TRUNCATE_LEN>())
-                    .finish()
+                    .finish();
             }
 
             (Some(result), None) => {
@@ -271,7 +271,7 @@ fn fmt_lsp_msg(f: &mut fmt::Formatter<'_>, data: &serde_json::Value) -> fmt::Res
                     .debug_tuple("Lsp::Response::Ok")
                     .field(&format_args!("{id}"))
                     .field(&result.truncate::<TRUNCATE_LEN>())
-                    .finish()
+                    .finish();
             }
             // Malformed
             _ => {}

@@ -1,5 +1,5 @@
-use actix_error_proc::{proof_route, HttpResult};
-use actix_web::{get, web, HttpRequest, HttpResponse, Responder};
+use actix_failwrap::proof_route;
+use actix_web::{HttpRequest, HttpResponse, get, web};
 use oauth2::{AuthorizationCode, CsrfToken, Scope, TokenResponse};
 use serde::Deserialize;
 use uuid::Uuid;
@@ -22,7 +22,7 @@ pub struct AuthRequest {
 }
 
 #[get("/auth")]
-pub async fn auth(oauth: web::Data<OAuthData>) -> impl Responder {
+pub async fn auth(oauth: web::Data<OAuthData>) -> HttpResponse {
     let (auth_url, _csrf_token) = oauth
         .client
         .authorize_url(CsrfToken::new_random)
@@ -34,19 +34,19 @@ pub async fn auth(oauth: web::Data<OAuthData>) -> impl Responder {
         .finish()
 }
 
-#[get("/auth/me")]
-pub async fn me(req: HttpRequest) -> HttpResult<HttpErrors> {
+#[proof_route("GET /auth/me")]
+pub async fn me(req: HttpRequest) -> Result<HttpResponse, HttpErrors> {
     let user_info = jwt::get_user_info(&req)?;
 
     Ok(HttpResponse::Ok().json(user_info))
 }
 
-#[get("/auth/callback")]
+#[proof_route("GET /auth/callback")]
 async fn callback(
     state: web::Data<AppState>,
     query: web::Query<AuthRequest>,
     oauth_data: web::Data<OAuthData>,
-) -> HttpResult<HttpErrors> {
+) -> Result<HttpResponse, HttpErrors> {
     let code = AuthorizationCode::new(query.code.clone());
 
     let token = oauth_data
@@ -90,11 +90,11 @@ struct GuestLoginRequest {
     guest_name: String,
 }
 
-#[proof_route(post("/auth/guest"))]
+#[proof_route("POST /auth/guest")]
 async fn login_guest(
     state: web::Data<AppState>,
     body: web::Json<GuestLoginRequest>,
-) -> HttpResult<HttpErrors> {
+) -> Result<HttpResponse, HttpErrors> {
     let guest_name = &body.guest_name;
     let guest_uuid = Uuid::new_v4().to_string();
 
@@ -122,12 +122,12 @@ struct UpdateNameRequest {
     new_name: ArcStr,
 }
 
-#[proof_route(post("/auth/update"))]
+#[proof_route("POST /auth/update")]
 async fn update_name(
     state: web::Data<AppState>,
     body: web::Json<UpdateNameRequest>,
     req: actix_web::HttpRequest,
-) -> HttpResult<HttpErrors> {
+) -> Result<HttpResponse, HttpErrors> {
     let token_data = jwt::get_user_info(&req)?;
 
     if !token_data.is_guest {

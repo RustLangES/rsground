@@ -18,10 +18,10 @@ use rsground_runner::{PipeWriter, Runner};
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
-use crate::utils::{define_local_logger, ArcStr, Truncate};
+use crate::utils::{ArcStr, Truncate, define_local_logger};
 use crate::ws::messages::InternalMessage;
 
-use super::project_runner::{start_job, AbortSender};
+use super::project_runner::{AbortSender, start_job};
 
 define_local_logger!(local_log as "backend::lsp" {
     client_stdin,
@@ -216,7 +216,7 @@ impl Handler<ClientStdin> for ProjectLsp {
                 return;
             }
             LspOutput::Notify(LspNotify { ref method, .. }) if method == Initialized::METHOD => {
-                return
+                return;
             }
             _ => {}
         }

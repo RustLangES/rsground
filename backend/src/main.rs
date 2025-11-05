@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use actix_cors::Cors;
-use actix_web::{web, App, HttpServer};
+use actix_web::{App, HttpServer, web};
 
 use auth::github;
 use auth::jwt::JWT_SECRET;

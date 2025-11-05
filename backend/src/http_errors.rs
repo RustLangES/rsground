@@ -1,7 +1,7 @@
-use actix_error_proc::ActixError;
+use actix_failwrap::ErrorResponse;
 use thiserror::Error;
 
-#[derive(ActixError, Error, Debug)]
+#[derive(ErrorResponse, Error, Debug)]
 pub enum HttpErrors {
     // -- JWT/Auth related -- //
     #[error("Error encoding JWT: {0}")]
@@ -12,31 +12,31 @@ pub enum HttpErrors {
     CodeExchange(String),
 
     #[error("Only guest users can change their name")]
-    #[http_status(Forbidden)]
+    #[status_code(Forbidden)]
     GithubNameChange,
 
     #[error("Error fetching github user: {0}")]
     GithubUserFetch(reqwest::Error),
 
     #[error("Invalid token")]
-    #[http_status(Unauthorized)]
+    #[status_code(Unauthorized)]
     InvalidJWT,
 
     #[error("No token provided")]
-    #[http_status(Unauthorized)]
+    #[status_code(Unauthorized)]
     NoTokenProvided,
 
     // -- Websockets related -- //
     #[error("Project doesn't exist")]
-    #[http_status(NotFound)]
+    #[status_code(NotFound)]
     ProjectDoesNotExist,
 
     #[error("Do not have access to project")]
-    #[http_status(Unauthorized)]
+    #[status_code(Unauthorized)]
     NotAccessible,
 
     #[error("Invalid password for private project")]
-    #[http_status(Unauthorized)]
+    #[status_code(Unauthorized)]
     InvalidPassword,
 
     #[error("Error at websocket start: {0}")]

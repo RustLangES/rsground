@@ -1,5 +1,5 @@
-use actix_error_proc::{proof_route, HttpResult};
-use actix_web::{web, HttpRequest};
+use actix_failwrap::proof_route;
+use actix_web::{HttpRequest, HttpResponse, web};
 use uuid::Uuid;
 
 use crate::auth::jwt;
@@ -16,13 +16,13 @@ fn get_element<'a>(key_val: &'a KeyValueVec, target: &str) -> Option<&'a String>
         .find_map(|(key, val)| (key == target).then_some(val))
 }
 
-#[proof_route(get("/ws/{project_id}"))]
+#[proof_route("GET /ws/{project_id}")]
 async fn websocket(
     data: web::Data<AppState>,
     project_id: web::Path<Uuid>,
     req: HttpRequest,
     stream: web::Payload,
-) -> HttpResult<HttpErrors> {
+) -> Result<HttpResponse, HttpErrors> {
     let (_, key_val) = parse_protocol_header(&req)?;
 
     let password = get_element(&key_val, "password").cloned();

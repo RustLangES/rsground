@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use actix_error_proc::{proof_route, HttpResult};
-use actix_web::{web, HttpRequest, HttpResponse};
+use actix_failwrap::proof_route;
+use actix_web::{HttpRequest, HttpResponse, web};
 use futures::StreamExt as _;
 use serde_json::json;
 use uuid::Uuid;
@@ -12,12 +12,12 @@ use crate::project::AccessLevel;
 use crate::state::AppState;
 use crate::utils::{ArcStr, ToStream};
 
-#[proof_route(get("/project/{project_id}"))]
+#[proof_route("GET /project/{project_id}")]
 pub async fn get_project(
     app_state: web::Data<AppState>,
     project_id: web::Path<Uuid>,
     req: HttpRequest,
-) -> HttpResult<HttpErrors> {
+) -> Result<HttpResponse, HttpErrors> {
     let app_state = app_state.into_inner();
     let project_id = project_id.into_inner();
     let password = req
@@ -68,12 +68,12 @@ pub async fn get_project(
     })))
 }
 
-#[proof_route(post("/create/{name}"))]
+#[proof_route("POST /create/{name}")]
 pub async fn create_project(
     app_state: web::Data<AppState>,
     name: web::Path<ArcStr>,
     req: HttpRequest,
-) -> HttpResult<HttpErrors> {
+) -> Result<HttpResponse, HttpErrors> {
     let app_state = app_state.into_inner();
     let name = name.into_inner();
 
@@ -90,12 +90,12 @@ pub async fn create_project(
     })))
 }
 
-#[proof_route(post("/fork/{project_id}"))]
+#[proof_route("POST /fork/{project_id}")]
 pub async fn fork_project(
     app_state: web::Data<AppState>,
     project_id: web::Path<Uuid>,
     req: HttpRequest,
-) -> HttpResult<HttpErrors> {
+) -> Result<HttpResponse, HttpErrors> {
     let app_state = app_state.into_inner();
     let project_id = project_id.into_inner();
 

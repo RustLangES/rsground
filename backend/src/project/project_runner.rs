@@ -1,26 +1,8 @@
-use std::sync::Arc;
-
 use actix::{Actor, ActorFutureExt, AsyncContext, WrapFuture};
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::oneshot;
 
 pub type AbortSender = oneshot::Sender<()>;
 pub type AbortReceiver = oneshot::Receiver<()>;
-
-#[derive(Debug)]
-#[repr(transparent)]
-pub struct SharedExport<T>(Arc<Mutex<Option<T>>>);
-
-impl<T> Clone for SharedExport<T> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-
-impl<T> Default for SharedExport<T> {
-    fn default() -> Self {
-        Self(Mutex::new(None).into())
-    }
-}
 
 pub fn create_abort() -> (AbortSender, AbortReceiver) {
     oneshot::channel::<()>()

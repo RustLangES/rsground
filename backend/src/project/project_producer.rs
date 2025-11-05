@@ -9,7 +9,7 @@ use uuid::Uuid;
 use crate::ws::messages::{OutputChannel, ServerMessage};
 
 use super::define_local_logger;
-use super::project_runner::{start_job, AbortSender};
+use super::project_runner::{AbortSender, start_job};
 
 define_local_logger! {local_log as "backend::producer" {
     compile,

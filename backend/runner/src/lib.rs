@@ -9,8 +9,8 @@ use futures::TryStreamExt;
 use futures_ext::{FutureExt, OptionalFuture};
 use hakoniwa::{Child, Command, Container, ExitStatus, Output};
 use hakoniwa_ext::{AsyncOsReader, HakoniwaChildExt};
-pub use os_pipe::{PipeReader, PipeWriter};
 use std::future::Future;
+pub use std::io::{PipeReader, PipeWriter};
 use std::path::{Path, PathBuf};
 use tokio::sync::oneshot;
 use tokio::{fs, io};
@@ -46,6 +46,7 @@ impl Runner {
         Container::new()
             .hostname("rsground")
             .rootfs(concat!(env!("CARGO_MANIFEST_DIR"), "/lxc_rootfs"))
+            .expect("Cannot create container")
             .tmpfsmount("/tmp")
             .devfsmount("/dev")
             .procfsmount("/proc")
@@ -171,9 +172,12 @@ impl Runner {
         };
 
         let (status, stdout, stderr) =
-            tokio::try_join!(status, stdout, stderr).map_err(|join_error| {
-                return hakoniwa::Error::Unexpected(format!("Join error: {join_error}"));
-            })?;
+            tokio::try_join!(status, stdout, stderr).unwrap_or_else(|join_error| {
+                eprintln!("Join error: {join_error}");
+                // FIXME: hakoniwa errors are obscured. see https://github.com/souk4711/hakoniwa/issues/107
+                // Wait until next release.
+                panic!("tokio task panicked. see https://github.com/souk4711/hakoniwa/issues/107")
+            });
 
         Ok((status, stdout, stderr))
     }

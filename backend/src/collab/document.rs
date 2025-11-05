@@ -5,7 +5,7 @@ use serde::Serialize;
 use tokio::sync::{Notify, RwLock, RwLockWriteGuard};
 
 use crate::collab::ot::transform_index;
-use crate::utils::{define_local_logger, ArcStr, AsyncInto};
+use crate::utils::{ArcStr, AsyncInto, define_local_logger};
 
 use super::UserOperation;
 

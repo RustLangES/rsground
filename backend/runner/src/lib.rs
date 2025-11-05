@@ -79,8 +79,12 @@ impl Runner {
         content: impl AsRef<str>,
     ) -> io::Result<()> {
         let mut home = self.temp_home.clone();
-        // FIXME: This is security breach, needs to check if path is inside the container
         home.push(container_path.as_ref());
+
+        // Check if path is inside the container
+        if !home.starts_with(&self.temp_home) {
+            return Err(io::Error::new(io::ErrorKind::PermissionDenied, "file is outside playground"))
+        }
 
         fs::create_dir_all(home.parent().unwrap()).await.unwrap();
 

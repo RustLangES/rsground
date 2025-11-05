@@ -13,7 +13,6 @@ async-io.workspace = true
 hakoniwa.workspace = true
 lsp-types.workspace = true
 nix.workspace = true
-os_pipe.workspace = true
 futures.workspace = true
 thiserror.workspace = true
 tokio.workspace = true

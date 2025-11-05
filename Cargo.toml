@@ -29,7 +29,6 @@ nix = {version = "0.29.0", features = ["process", "signal"]}
 oauth2 = { version = "4", features = ["reqwest"] }
 once_cell = "1.17"
 operational-transform = { version = "0.6", features = ["serde"] }
-os_pipe = "1.2.1"
 reqwest = { version = "0.12.15", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"

@@ -67,5 +67,21 @@ pub const LSP_INITIALIZATION: LazyLock<InitializeParams> = LazyLock::new(|| Init
         }),
         ..Default::default()
     },
+
+    initialization_options: Some(serde_json::json!({
+        "cachePriming": {
+            "enable": false
+        },
+        "cargo": {
+            "allTargets": false,
+            "buildScripts": {
+                "enable": false
+            },
+        },
+        "completion": {
+            "limit": 25
+        },
+        "numThreads": 1,
+    })),
     ..Default::default()
 });

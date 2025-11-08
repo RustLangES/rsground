@@ -5,10 +5,13 @@ use std::sync::Arc;
 use actix::Addr;
 use futures::StreamExt;
 use rsground_runner::Runner;
-use rsground_runner::lsp::notification::{DidChangeTextDocument, DidOpenTextDocument};
+use rsground_runner::lsp::notification::{
+    DidChangeTextDocument, DidOpenTextDocument, DidSaveTextDocument,
+};
 use rsground_runner::lsp::{
-    DidChangeTextDocumentParams, DidOpenTextDocumentParams, TextDocumentContentChangeEvent,
-    TextDocumentItem, Uri, VersionedTextDocumentIdentifier,
+    DidChangeTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
+    TextDocumentContentChangeEvent, TextDocumentIdentifier, TextDocumentItem, Uri,
+    VersionedTextDocumentIdentifier,
 };
 use tokio::sync::broadcast;
 use uuid::Uuid;
@@ -194,12 +197,21 @@ impl Project {
 
             self.lsp
                 .send_notify::<DidChangeTextDocument, true>(&DidChangeTextDocumentParams {
-                    text_document: VersionedTextDocumentIdentifier { uri, version },
+                    text_document: VersionedTextDocumentIdentifier {
+                        uri: uri.clone(),
+                        version,
+                    },
                     content_changes: vec![TextDocumentContentChangeEvent {
                         range: None,
                         range_length: None,
                         text: content.as_ref().to_owned(),
                     }],
+                });
+
+            self.lsp
+                .send_notify::<DidSaveTextDocument, true>(&DidSaveTextDocumentParams {
+                    text_document: TextDocumentIdentifier { uri },
+                    text: Some(content.as_ref().to_owned()),
                 });
         }
 

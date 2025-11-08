@@ -83,7 +83,10 @@ impl Runner {
 
         // Check if path is inside the container
         if !home.starts_with(&self.temp_home) {
-            return Err(io::Error::new(io::ErrorKind::PermissionDenied, "file is outside playground"))
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "file is outside playground",
+            ));
         }
 
         fs::create_dir_all(home.parent().unwrap()).await.unwrap();

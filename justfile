@@ -44,23 +44,43 @@ run-frontend:
   just setup-vendor-uncompress bash-interactive-5.2
   just setup-vendor-uncompress binutils-2.43.1
   just setup-vendor-uncompress binutils-2.43.1-lib
+  just setup-vendor-uncompress brotli-1.1.0-lib
+  just setup-vendor-uncompress bzip2-1.0.8
   just setup-vendor-uncompress coreutils-full-9.6
+  just setup-vendor-uncompress curl-8.16.0
+  just setup-vendor-uncompress curl-8.16.0-bin
+  just setup-vendor-uncompress elfutils-0.193
   just setup-vendor-uncompress file-5.46
   just setup-vendor-uncompress gcc-14-20241116
   just setup-vendor-uncompress gcc-14-20241116-lib
   just setup-vendor-uncompress glibc-2.40-66-lib
   just setup-vendor-uncompress glibc-2.40-66-bin
   just setup-vendor-uncompress gmp-with-cxx-6.3.0
+  just setup-vendor-uncompress iproute2-6.16.0
   just setup-vendor-uncompress isl-0.20
+  just setup-vendor-uncompress keyutils-1.6.3-lib
+  just setup-vendor-uncompress krb5-1.22.1-lib
+  just setup-vendor-uncompress libbpf-1.6.2
+  just setup-vendor-uncompress libidn2-2.3.8
+  just setup-vendor-uncompress libmnl-1.0.5
   just setup-vendor-uncompress libmpc-1.3.1
+  just setup-vendor-uncompress libpsl-0.21.5
+  just setup-vendor-uncompress libssh2-1.11.1
+  just setup-vendor-uncompress libunistring-1.3
+  just setup-vendor-uncompress ltrace-0.7.91
   just setup-vendor-uncompress mpfr-4.2.1
   just setup-vendor-uncompress ncurses-6.5
-  just setup-vendor-uncompress openssl-3.4.1
+  just setup-vendor-uncompress nghttp2-1.67.1-lib
+  just setup-vendor-uncompress nghttp3-1.11.0
+  just setup-vendor-uncompress ngtcp2-1.15.1
+  just setup-vendor-uncompress openssl-3.5.2
   just setup-vendor-uncompress patchelf-0.15.0
   just setup-vendor-uncompress readline-8.2p13
   just setup-vendor-uncompress rust-stable-2025-03-18
   just setup-vendor-uncompress xgcc-14-20241116-libgcc
+  just setup-vendor-uncompress xz-5.8.1
   just setup-vendor-uncompress zlib-1.3.1
+  just setup-vendor-uncompress zstd-1.5.7
 
   ########################
   ######## ROOTFS ########
@@ -80,23 +100,43 @@ run-frontend:
   just setup-vendor-rootfs bash-interactive-5.2
   just setup-vendor-rootfs binutils-2.43.1
   just setup-vendor-rootfs binutils-2.43.1-lib
+  just setup-vendor-rootfs brotli-1.1.0-lib
+  just setup-vendor-rootfs bzip2-1.0.8
   just setup-vendor-rootfs coreutils-full-9.6
+  just setup-vendor-rootfs curl-8.16.0
+  just setup-vendor-rootfs curl-8.16.0-bin
+  just setup-vendor-rootfs elfutils-0.193
   just setup-vendor-rootfs file-5.46
   just setup-vendor-rootfs gcc-14-20241116
   just setup-vendor-rootfs gcc-14-20241116-lib
   just setup-vendor-rootfs glibc-2.40-66-lib
   just setup-vendor-rootfs glibc-2.40-66-bin
   just setup-vendor-rootfs gmp-with-cxx-6.3.0
+  just setup-vendor-rootfs iproute2-6.16.0
   just setup-vendor-rootfs isl-0.20
+  just setup-vendor-rootfs keyutils-1.6.3-lib
+  just setup-vendor-rootfs krb5-1.22.1-lib
+  just setup-vendor-rootfs libbpf-1.6.2
+  just setup-vendor-rootfs libidn2-2.3.8
+  just setup-vendor-rootfs libmnl-1.0.5
   just setup-vendor-rootfs libmpc-1.3.1
+  just setup-vendor-rootfs libpsl-0.21.5
+  just setup-vendor-rootfs libssh2-1.11.1
+  just setup-vendor-rootfs libunistring-1.3
+  just setup-vendor-rootfs ltrace-0.7.91
+  just setup-vendor-rootfs nghttp2-1.67.1-lib
+  just setup-vendor-rootfs ngtcp2-1.15.1
   just setup-vendor-rootfs mpfr-4.2.1
   just setup-vendor-rootfs ncurses-6.5
-  just setup-vendor-rootfs openssl-3.4.1
+  just setup-vendor-rootfs nghttp3-1.11.0
+  just setup-vendor-rootfs openssl-3.5.2
   just setup-vendor-rootfs patchelf-0.15.0
   just setup-vendor-rootfs readline-8.2p13
   just setup-vendor-rootfs rust-stable-2025-03-18
   just setup-vendor-rootfs xgcc-14-20241116-libgcc
+  just setup-vendor-rootfs xz-5.8.1
   just setup-vendor-rootfs zlib-1.3.1
+  just setup-vendor-rootfs zstd-1.5.7
 
   echo -e "\x1b[1;30;43m  FINISH  \x1b[0m"
 

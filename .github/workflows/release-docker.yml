@@ -30,6 +30,13 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
+      - name: Setup Attic cache
+        uses: ryanccn/attic-action@v0
+        with:
+          endpoint: https://cache.rustlang-es.org/
+          cache: main
+          token: ${{ secrets.ATTIC_TOKEN }}
+
       - name: Generate Arch List
         id: generate-arch-list
         run: |
@@ -58,6 +65,13 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
+      - name: Setup Attic cache
+        uses: ryanccn/attic-action@v0
+        with:
+          endpoint: https://cache.rustlang-es.org/
+          cache: main
+          token: ${{ secrets.ATTIC_TOKEN }}
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -82,6 +96,14 @@ jobs:
           nix_path: nixpkgs=channel:nixos-unstable
           extra_nix_config: |
             experimental-features = nix-command flakes
+
+      - name: Setup Attic cache
+        uses: ryanccn/attic-action@v0
+        with:
+          endpoint: https://cache.rustlang-es.org/
+          cache: main
+          token: ${{ secrets.ATTIC_TOKEN }}
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:

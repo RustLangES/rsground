@@ -1,4 +1,13 @@
 {
+  nixConfig = {
+    extra-substituters = [
+      "https://cache.rustlang-es.org/main"
+    ];
+    extra-trusted-public-keys = [
+      "main:NnVmqBjdfyyL4tGgoTw17lUMDgulJ75+67pOsJupnS4="
+    ];
+  };
+
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs";
 
@@ -50,10 +59,11 @@
       wasm-pack
     ];
 
-    mkPackage = { os, ... } @ variant: let
+    mkPackage = { os, target, ... } @ variant: let
       crossPkgs = mkCrossPkgs variant;
+      crossToolchain = fenix.targets.${target}.toolchainOf rustToolchainDef;
     in (pkgs.makeRustPlatform {
-      inherit (toolchain) cargo rustc;
+      inherit (crossToolchain) cargo rustc;
     }).buildRustPackage (finalAttrs: {
       doCheck = false;
       pname = "backend";
@@ -66,8 +76,9 @@
 
       env = {
         OPENSSL_NO_VENDOR = 1;
-        HOST_CC = lib.optionalString (os != "windows") "${pkgs.stdenv.cc.nativePrefix}cc";
-        TARGET_CC = lib.optionalString (os != "windows") "${crossPkgs.stdenv.cc.targetPrefix}cc";
+        CARGO_BUILD_TARGET = target;
+        HOST_CC = "${pkgs.stdenv.cc.nativePrefix}cc";
+        TARGET_CC = "${crossPkgs.stdenv.cc.targetPrefix}cc";
       };
 
       nativeBuildInputs = [pkgs.pkg-config];
@@ -103,7 +114,7 @@
       tag = cargoManifest.package.version;
       architecture = dockerPlatform;
 
-      contents = [ appPkg ];
+      contents = with pkgs; [ appPkg file bash ];
       config.Cmd = ["/bin/backend"];
     };
 
@@ -160,11 +171,11 @@
       LIBSECCOMP_LIB_PATH = "${lib.makeLibraryPath [pkgs.libseccomp]}";
       LD_LIBRARY_PATH = "${lib.makeLibraryPath [pkgs.libseccomp]}";
 
-      shellHook = ''
-        if [ ! -e frontend-wasm/pkg ]; then wasm-pack build frontend-wasm; fi
-        pnpm install -C frontend --frozen-lockfile || pnpm install -C frontend
-        just setup-vendor-if-not
-      '';
+      # shellHook = ''
+      #   if [ ! -e frontend-wasm/pkg ]; then wasm-pack build frontend-wasm; fi
+      #   pnpm install -C frontend --frozen-lockfile || pnpm install -C frontend
+      #   just setup-vendor-if-not
+      # '';
     };
   };
 }
